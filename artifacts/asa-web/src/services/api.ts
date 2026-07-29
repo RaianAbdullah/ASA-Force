@@ -260,7 +260,10 @@ export const authApi = {
 
 export const adminApi = {
   listPending: (page = 0, size = 20) => request<PageResponse<any>>(`/v1/admin/registrations/pending?page=${page}&size=${size}`),
-  approve: (id: string) => request<any>(`/v1/admin/registrations/${id}/approve`, { method: 'PATCH' }),
+  approve: (id: string, departmentId: string) => request<any>(
+    `/v1/admin/registrations/${id}/approve`,
+    { method: 'PATCH', body: JSON.stringify({ departmentId }) }
+  ),
   reject: (id: string, reason: string) => request<any>(`/v1/admin/registrations/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
   listAllEmployees: () => request<EmployeeSummaryDto[]>('/v1/admin/employees'),
   listActiveEmployees: () => request<EmployeeSummaryDto[]>('/v1/admin/employees/active'),

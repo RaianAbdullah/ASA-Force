@@ -1,6 +1,7 @@
 package com.asa.workforce.admin.controller;
 
 import com.asa.workforce.admin.dto.AdminActionRequest;
+import com.asa.workforce.admin.dto.ApproveRegistrationRequest;
 import com.asa.workforce.admin.dto.CreateEmployeeRequest;
 import com.asa.workforce.admin.dto.CreateEmployeeResponse;
 import com.asa.workforce.admin.dto.EmployeeSummaryDto;
@@ -60,11 +61,12 @@ public class AdminController {
     @Operation(summary = "Approve a pending employee registration")
     public ResponseEntity<ApiResponse<Map<String, Object>>> approve(
             @PathVariable UUID employeeId,
+            @Valid @RequestBody ApproveRegistrationRequest approvalRequest,
             Authentication auth,
             HttpServletRequest request) {
 
         Map<String, Object> result =
-                adminService.approve(employeeId, auth.getName(), request);
+                adminService.approve(employeeId, approvalRequest, auth.getName(), request);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
