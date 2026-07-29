@@ -14,12 +14,12 @@ import { Loader2, ArrowRight } from 'lucide-react';
 import { Link } from 'wouter';
 
 const registerSchema = z.object({
-  nationalId: z.string().min(10, 'رقم الهوية يجب أن يكون 10 أرقام على الأقل'),
+  nationalId: z.string().regex(/^\d{10}$/, 'رقم الهوية يجب أن يتكون من 10 أرقام'),
   firstNameAr: z.string().min(2, 'الاسم الأول مطلوب باللغة العربية'),
   middleNameAr: z.string().optional(),
   lastNameAr: z.string().min(2, 'الاسم الأخير مطلوب باللغة العربية'),
-  phoneNumber: z.string().min(9, 'رقم الجوال غير صحيح'),
-  password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
+  phoneNumber: z.string().regex(/^\+?[0-9]{9,15}$/, 'رقم الجوال غير صحيح'),
+  password: z.string().min(12, 'كلمة المرور يجب أن تكون 12 حرفاً على الأقل'),
   confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "كلمات المرور غير متطابقة",

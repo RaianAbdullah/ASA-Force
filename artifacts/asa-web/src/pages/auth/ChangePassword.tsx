@@ -40,6 +40,10 @@ export const ChangePassword: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword || !newPassword) return;
+    if (newPassword.length < 12) {
+      toast({ title: 'خطأ', description: 'كلمة المرور الجديدة يجب أن تكون 12 حرفاً على الأقل', variant: 'destructive' });
+      return;
+    }
     if (newPassword !== confirmPassword) {
       toast({ title: 'خطأ', description: 'كلمات المرور غير متطابقة', variant: 'destructive' });
       return;

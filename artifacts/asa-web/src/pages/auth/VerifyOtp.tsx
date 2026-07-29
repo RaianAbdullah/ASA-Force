@@ -27,6 +27,7 @@ export const VerifyOtp: React.FC = () => {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [countdown]);
 
   const verifyMutation = useMutation({

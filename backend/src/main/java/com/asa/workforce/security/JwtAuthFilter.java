@@ -14,6 +14,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -120,7 +121,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 authorities = List.of(new SimpleGrantedAuthority("ROLE_" + emp.getRole().name()));
             }
 
-            var auth = new UsernamePasswordAuthenticationToken(nationalId, null, authorities);
+            // Controllers use @AuthenticationPrincipal UserDetails, so the JWT
+            // authentication must expose a UserDetails principal rather than a
+            // plain String. Authentication#getName() remains the national ID.
+            var principal = new User(nationalId, "", authorities);
+            var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
             auth.setDetails(employeeId);
             SecurityContextHolder.getContext().setAuthentication(auth);
 
