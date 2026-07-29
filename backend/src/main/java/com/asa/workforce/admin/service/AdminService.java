@@ -1,6 +1,7 @@
 package com.asa.workforce.admin.service;
 
 import com.asa.workforce.admin.dto.AdminActionRequest;
+import com.asa.workforce.admin.dto.ApproveRegistrationRequest;
 import com.asa.workforce.admin.dto.CreateEmployeeRequest;
 import com.asa.workforce.admin.dto.CreateEmployeeResponse;
 import com.asa.workforce.admin.dto.EmployeeSummaryDto;
@@ -67,7 +68,9 @@ public class AdminService {
     // ── Approve ──────────────────────────────────────────────────────────────
 
     @Transactional
-    public Map<String, Object> approve(UUID employeeId, String adminNationalId,
+    public Map<String, Object> approve(UUID employeeId,
+                                       ApproveRegistrationRequest approvalRequest,
+                                       String adminNationalId,
                                        HttpServletRequest httpReq) {
         Employee admin = employeeRepository.findByNationalId(adminNationalId)
                 .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
@@ -79,6 +82,13 @@ public class AdminService {
                     "Employee is not in PENDING_APPROVAL status (current: " + emp.getStatus() + ")");
         }
 
+        Department department = departmentRepository
+                .findById(approvalRequest.getDepartmentId())
+                .filter(Department::getIsActive)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "An active department is required before approval"));
+
+        emp.setDepartment(department);
         emp.setStatus(Status.ACTIVE);
         emp.setReviewedBy(admin.getId());
         emp.setReviewedAt(OffsetDateTime.now());
@@ -86,6 +96,8 @@ public class AdminService {
 
         auditService.log(AuditService.ADMIN_APPROVE, admin, "EMPLOYEE", emp.getId(),
                 Map.of("employeeName", emp.getFirstNameAr() + " " + emp.getLastNameAr(),
+                        "departmentId", department.getId().toString(),
+                        "departmentName", department.getNameEn(),
                         "newStatus", "ACTIVE"),
                 httpReq);
 
@@ -105,6 +117,8 @@ public class AdminService {
 
         return Map.of("employeeId", employeeId.toString(),
                 "newStatus", "ACTIVE",
+                "departmentId", department.getId().toString(),
+                "departmentName", department.getNameAr(),
                 "approvedBy", adminNationalId,
                 "approvedAt", emp.getReviewedAt().toString());
     }

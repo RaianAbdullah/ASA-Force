@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi, attendanceApi } from '@/services/api';
+import { adminApi, attendanceApi, departmentApi } from '@/services/api';
 import { queryKeys } from '@/services/queryKeys';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Users, UserPlus, Check, X, ShieldAlert, Activity, UserCheck } from 'lucide-react';
 import { useState } from 'react';
@@ -19,6 +20,8 @@ export const AdminDashboard: React.FC = () => {
   const queryClient = useQueryClient();
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [approveId, setApproveId] = useState<string | null>(null);
+  const [approveDepartmentId, setApproveDepartmentId] = useState('');
 
   const { data: stats, isLoading: isLoadingStats } = useQuery({
     queryKey: queryKeys.attendance.todaySummary(),
@@ -30,10 +33,18 @@ export const AdminDashboard: React.FC = () => {
     queryFn: () => adminApi.listPending(0, 50),
   });
 
+  const { data: departments, isLoading: isLoadingDepartments } = useQuery({
+    queryKey: queryKeys.departments.active,
+    queryFn: () => departmentApi.listActive(),
+  });
+
   const approveMutation = useMutation({
-    mutationFn: (id: string) => adminApi.approve(id),
+    mutationFn: ({ id, departmentId }: { id: string, departmentId: string }) =>
+      adminApi.approve(id, departmentId),
     onSuccess: () => {
       toast({ title: 'تم', description: 'تم الموافقة على طلب التسجيل بنجاح' });
+      setApproveId(null);
+      setApproveDepartmentId('');
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.pendingRegistrations(0) });
     },
     onError: (error: any) => {
@@ -54,8 +65,9 @@ export const AdminDashboard: React.FC = () => {
     }
   });
 
-  const handleApprove = (id: string) => {
-    approveMutation.mutate(id);
+  const handleApprove = () => {
+    if (!approveId || !approveDepartmentId) return;
+    approveMutation.mutate({ id: approveId, departmentId: approveDepartmentId });
   };
 
   const handleReject = () => {
@@ -165,14 +177,71 @@ export const AdminDashboard: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-left">
                         <div className="flex justify-end gap-2">
-                          <Button 
-                            size="sm" 
-                            className="bg-[#00E676] hover:bg-[#00E676]/90 text-black font-bold h-8"
-                            onClick={() => handleApprove(reg.id)}
-                            disabled={approveMutation.isPending || rejectMutation.isPending}
-                          >
-                            <Check className="h-4 w-4 ml-1" /> موافقة
-                          </Button>
+                          <Dialog open={approveId === reg.id} onOpenChange={(open) => {
+                            if (!open) { setApproveId(null); setApproveDepartmentId(''); }
+                            else setApproveId(reg.id);
+                          }}>
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                className="bg-[#00E676] hover:bg-[#00E676]/90 text-black font-bold h-8"
+                                disabled={approveMutation.isPending || rejectMutation.isPending}
+                              >
+                                <Check className="h-4 w-4 ml-1" /> موافقة
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px] bg-card border-border">
+                              <DialogHeader>
+                                <DialogTitle className="text-right">الموافقة وتحديد القسم</DialogTitle>
+                                <DialogDescription className="text-right">
+                                  اختر قسم الموظف ({reg.firstNameAr} {reg.lastNameAr}) قبل تفعيل الحساب.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 pt-4">
+                                <Select
+                                  value={approveDepartmentId}
+                                  onValueChange={setApproveDepartmentId}
+                                  disabled={isLoadingDepartments}
+                                >
+                                  <SelectTrigger dir="rtl" className="bg-black/20">
+                                    <SelectValue placeholder={
+                                      isLoadingDepartments ? 'جاري تحميل الأقسام...' : 'اختر القسم'
+                                    } />
+                                  </SelectTrigger>
+                                  <SelectContent dir="rtl">
+                                    {departments?.map((department) => (
+                                      <SelectItem key={department.id} value={department.id}>
+                                        {department.nameAr}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {!isLoadingDepartments && departments?.length === 0 ? (
+                                  <p className="text-sm text-destructive text-right">
+                                    لا توجد أقسام نشطة. أنشئ قسماً قبل الموافقة على الموظف.
+                                  </p>
+                                ) : null}
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                      setApproveId(null);
+                                      setApproveDepartmentId('');
+                                    }}
+                                  >
+                                    إلغاء
+                                  </Button>
+                                  <Button
+                                    className="bg-[#00E676] hover:bg-[#00E676]/90 text-black font-bold"
+                                    disabled={!approveDepartmentId || approveMutation.isPending}
+                                    onClick={handleApprove}
+                                  >
+                                    تأكيد الموافقة
+                                  </Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                           <Dialog open={rejectId === reg.id} onOpenChange={(open) => {
                             if (!open) { setRejectId(null); setRejectReason(''); }
                             else setRejectId(reg.id);
