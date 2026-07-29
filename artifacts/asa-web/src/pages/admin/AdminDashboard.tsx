@@ -161,7 +161,7 @@ export const AdminDashboard: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-center font-mono" dir="ltr">{reg.nationalId}</td>
                       <td className="px-6 py-4 text-center text-muted-foreground" dir="ltr">
-                        {new Date(reg.createdAt).toLocaleDateString('en-GB')}
+                        {new Date(reg.registeredAt).toLocaleDateString('en-GB')}
                       </td>
                       <td className="px-6 py-4 text-left">
                         <div className="flex justify-end gap-2">

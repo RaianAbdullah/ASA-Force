@@ -21,17 +21,20 @@ export const Login: React.FC = () => {
   const loginMutation = useMutation({
     mutationFn: () => authApi.login(nationalId, password),
     onSuccess: (data) => {
+      const roles = data.roles || [data.role];
       login({
         token: data.accessToken,
         refreshToken: data.refreshToken,
         role: data.role,
-        roles: data.roles || [data.role],
+        roles,
         nameAr: data.nameAr,
         employeeId: data.employeeId
       });
       
       if (data.mustChangePassword) {
         setLocation('/change-password');
+      } else if (roles.includes('SYSTEM_ADMIN')) {
+        setLocation('/admin');
       } else {
         setLocation('/');
       }
