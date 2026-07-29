@@ -39,7 +39,7 @@ services:
   - type: web
     name: asa-force-web
     runtime: static
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @workspace/asa-web build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/asa-web build
     staticPublishPath: ./artifacts/asa-web/dist/public
     autoDeployTrigger: commit
     domains:
