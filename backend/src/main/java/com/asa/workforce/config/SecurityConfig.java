@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -59,6 +60,10 @@ public class SecurityConfig {
         http
             // ── CSRF: disabled for stateless JWT API ──────────────────────────
             .csrf(AbstractHttpConfigurer::disable)
+
+            // Use the shared CorsConfigurationSource for browser preflight
+            // requests before authentication and authorization are evaluated.
+            .cors(Customizer.withDefaults())
 
             // ── Session: strictly stateless ───────────────────────────────────
             .sessionManagement(s ->
@@ -119,6 +124,8 @@ public class SecurityConfig {
 
             // ── Authorization rules ───────────────────────────────────────────
             .authorizeHttpRequests(auth -> auth
+                // Browser preflight requests never carry authentication.
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Public — auth flow
                 .requestMatchers(HttpMethod.POST,
                     "/v1/auth/register",
