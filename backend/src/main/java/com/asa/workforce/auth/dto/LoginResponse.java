@@ -19,6 +19,7 @@ public class LoginResponse {
     /** Full set of assigned roles (multi-role support). */
     private List<String> roles;
     private String       nameAr;
+    private String       departmentNameAr;
     private String       status;
     /** True when an admin created this account — employee must set a new password before using the app. */
     private boolean      mustChangePassword;

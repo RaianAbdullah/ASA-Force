@@ -281,6 +281,9 @@ public class AuthService {
                 .role(emp.getRole().name())
                 .roles(emp.getRoles().stream().map(Employee.Role::name).toList())
                 .nameAr(fullNameAr(emp))
+                .departmentNameAr(emp.getDepartment() != null
+                        ? emp.getDepartment().getNameAr()
+                        : null)
                 .status(emp.getStatus().name())
                 .mustChangePassword(emp.isMustChangePassword())
                 .build();
@@ -324,6 +327,9 @@ public class AuthService {
                 .role(emp.getRole().name())
                 .roles(emp.getRoles().stream().map(Employee.Role::name).toList())
                 .nameAr(fullNameAr(emp))
+                .departmentNameAr(emp.getDepartment() != null
+                        ? emp.getDepartment().getNameAr()
+                        : null)
                 .status(emp.getStatus().name())
                 .build();
     }

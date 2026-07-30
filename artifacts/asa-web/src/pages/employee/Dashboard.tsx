@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { Clock, MapPin, Calendar as CalendarIcon, Loader2, PlayCircle } from 'lucide-react';
+import { Clock, MapPin, Calendar as CalendarIcon, Loader2, PlayCircle, Building2 } from 'lucide-react';
 import { Link } from 'wouter';
 
 export const Dashboard: React.FC = () => {
@@ -72,12 +72,16 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-6 rounded-xl border border-border shadow-sm">
-        <div>
+      <div className="flex flex-col md:flex-row-reverse justify-between items-start md:items-center gap-4 bg-card p-6 rounded-xl border border-border shadow-sm">
+        <div className="text-right">
           <h1 className="text-2xl font-bold text-foreground">مرحباً، {session?.nameAr}</h1>
           <p className="text-muted-foreground mt-1">يوم سعيد وعمل مثمر!</p>
+          <p className="inline-flex items-center gap-1.5 text-sm text-primary/80 mt-2">
+            <Building2 className="h-4 w-4" />
+            {session?.departmentNameAr || 'القسم غير محدد'}
+          </p>
         </div>
-        <div className="text-right">
+        <div className="text-left">
           <div className="text-3xl font-mono tracking-tight font-bold text-primary" dir="ltr">
             {currentTime.toLocaleTimeString('en-US', { hour12: false })}
           </div>
@@ -87,8 +91,8 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2 shadow-sm border-border bg-card/50 overflow-hidden relative">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6" dir="ltr">
+        <Card className="md:col-span-2 md:order-2 shadow-sm border-border bg-card/50 overflow-hidden relative" dir="rtl">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-accent" />
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -170,7 +174,7 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
+        <div className="space-y-6 md:order-1" dir="rtl">
           <Card className="shadow-sm border-border bg-card/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">

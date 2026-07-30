@@ -28,7 +28,8 @@ export const Login: React.FC = () => {
         role: data.role,
         roles,
         nameAr: data.nameAr,
-        employeeId: data.employeeId
+        employeeId: data.employeeId,
+        departmentNameAr: data.departmentNameAr
       });
       
       if (data.mustChangePassword) {

@@ -99,7 +99,7 @@ export const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   );
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background text-foreground selection:bg-primary/30">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row-reverse bg-background text-foreground selection:bg-primary/30">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -191,7 +191,10 @@ export const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => 
               </div>
               <div className="overflow-hidden">
                 <p className="text-sm font-medium text-white truncate">{session?.nameAr}</p>
-                <p className="text-xs text-muted-foreground truncate">{session?.role}</p>
+                <p className="text-xs text-primary/80 truncate">
+                  {session?.departmentNameAr || 'القسم غير محدد'}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">{session?.role}</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={logout} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0">

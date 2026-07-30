@@ -13,6 +13,7 @@ export interface Session {
   roles: EmployeeRole[];
   nameAr: string;
   employeeId: string;
+  departmentNameAr?: string;
 }
 
 const parseJwt = (token: string) => {
@@ -36,6 +37,11 @@ export const saveSession = (session: Session) => {
   localStorage.setItem('asa_roles', JSON.stringify(session.roles));
   localStorage.setItem('asa_name', session.nameAr);
   localStorage.setItem('asa_eid', session.employeeId);
+  if (session.departmentNameAr) {
+    localStorage.setItem('asa_department_name_ar', session.departmentNameAr);
+  } else {
+    localStorage.removeItem('asa_department_name_ar');
+  }
 };
 
 export const loadSession = (): Session | null => {
@@ -45,6 +51,7 @@ export const loadSession = (): Session | null => {
   const rolesStr = localStorage.getItem('asa_roles');
   const nameAr = localStorage.getItem('asa_name');
   const employeeId = localStorage.getItem('asa_eid');
+  const departmentNameAr = localStorage.getItem('asa_department_name_ar') || undefined;
 
   if (!token || !refreshToken || !role || !rolesStr || !nameAr || !employeeId) {
     return null;
@@ -52,7 +59,7 @@ export const loadSession = (): Session | null => {
 
   try {
     const roles = JSON.parse(rolesStr);
-    return { token, refreshToken, role, roles, nameAr, employeeId };
+    return { token, refreshToken, role, roles, nameAr, employeeId, departmentNameAr };
   } catch {
     return null;
   }
@@ -65,6 +72,7 @@ export const clearSession = () => {
   localStorage.removeItem('asa_roles');
   localStorage.removeItem('asa_name');
   localStorage.removeItem('asa_eid');
+  localStorage.removeItem('asa_department_name_ar');
 };
 
 export const updateTokens = (token: string, refreshToken: string) => {
