@@ -1,0 +1,75 @@
+# Production profile (SPRING_PROFILES_ACTIVE=production)
+# Activated automatically when the app runs in the deployed environment.
+
+logging:
+  level:
+    com.asa.workforce: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.flywaydb: INFO
+
+app:
+  cors:
+    # Explicit browser origins for the deployed web client. Override with
+    # ALLOWED_CORS_ORIGINS when another trusted frontend is introduced.
+    allowed-origins: "${ALLOWED_CORS_ORIGINS:https://asa-force.com,https://www.asa-force.com}"
+
+  otp:
+    log-to-console: false
+
+  trusted-proxy-cidrs: ""
+
+  geofence:
+    latitude: 24.669812
+    longitude: 46.695437
+    radius-meters: 100
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+spring:
+  datasource:
+    url: "jdbc:postgresql://${PGHOST}:${PGPORT:5432}/${PGDATABASE}"
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        default_schema: public
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    out-of-order: false
+
+# ── JWT ─────────────────────────────────────────────────────────────────────
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiry-minutes: 15
+  refresh-expiry-days: 3
+
+# ── Async + scheduling ────────────────────────────────────────────────────────
+spring.task:
+  execution.pool:
+    core-size: 4
+    max-size: 16
+    queue-capacity: 200
+  scheduling.pool.size: 2

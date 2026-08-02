@@ -1,0 +1,30 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Environment secrets — NEVER commit these
+.env
+*.env
+!.env.example
+
+# IDE
+.idea/
+*.iml
+*.iws
+.classpath
+.project
+.settings/
+*.launch
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Application uploads (dev)
+uploads/
+tmp/

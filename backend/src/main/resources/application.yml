@@ -1,0 +1,64 @@
+# ASA-Force API — Base Configuration
+# Profile-specific files override these values.
+# Never put secrets in this file. Use environment variables.
+
+spring:
+  application:
+    name: asa-force-api
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+  # Limit multipart upload size — prevents memory exhaustion / DoS
+  servlet:
+    multipart:
+      max-file-size:    10MB
+      max-request-size: 10MB
+
+server:
+  # Hosting platforms can inject PORT; local development defaults to 8080.
+  port: ${PORT:8080}
+  servlet:
+    # All API routes are hosted under /api.
+    # All controllers are relative to this prefix.
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/plain
+  error:
+    # Never expose stack traces or Spring internals in error responses
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+  # Limit request body size — prevents memory exhaustion / DoS attacks
+  tomcat:
+    max-http-form-post-size: 10MB
+    max-swallow-size:        10MB
+
+app:
+  cors:
+    # Override in each profile. Production must set a specific list.
+    allowed-origins: ${ALLOWED_CORS_ORIGINS:*}
+  attachments:
+    # Directory where message attachments are stored on disk.
+    dir: ${ATTACHMENTS_DIR:/tmp/asa-attachments}
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  server:
+    port: ${PORT:8080}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:true}
+    operationsSorter: alpha
+    tagsSorter: alpha
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SWAGGER_ENABLED:true}

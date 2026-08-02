@@ -1,0 +1,1990 @@
+# Build a Secure Workforce Attendance Mobile Application From Scratch
+
+Act as a senior full-stack software engineer, mobile developer, cybersecurity engineer, database architect, UI/UX designer, and software tester.
+
+Build a complete application from scratch called:
+
+# ASA Workforce
+
+The full academic project name is:
+
+**Secure Workforce Mobile Application System**
+
+This application will be used by a government workplace to manage:
+
+* Employees
+* Departments
+* Weekly work schedules
+* Weekend duty schedules
+* Attendance check-in
+* Vacation requests
+* Managers
+* Administrators
+* Security logs
+* Notifications
+
+The current workplace uses WhatsApp to communicate changing weekly schedules. The new application must replace this process with a secure and organised mobile system.
+
+Security must be designed from the beginning. Do not build the application first and add security later.
+
+---
+
+# 1. Technology Stack
+
+Use the following technologies.
+
+## Mobile Frontend
+
+Use:
+
+* React Native
+* Expo
+* TypeScript
+* Expo Router
+* React Hook Form
+* Zod for frontend form validation
+* TanStack Query for API requests and caching
+* Axios or a well-structured Fetch API client
+* Expo SecureStore for secure token storage
+* i18n support for Arabic and English
+* Right-to-left layout support for Arabic
+
+The initial target is iOS, but the project should also be compatible with Android.
+
+Do not store authentication tokens in AsyncStorage.
+
+## Backend
+
+Use:
+
+* Java 17
+* Spring Boot
+* Spring Security
+* Spring Data JPA
+* Hibernate
+* Maven
+* PostgreSQL
+* BCrypt or Argon2 for password hashing
+* JWT access tokens
+* Rotating refresh tokens
+* Flyway for database migrations
+* Bean Validation
+* OpenAPI documentation for development only
+* JUnit 5
+* Mockito
+* Spring Boot Test
+* Testcontainers for PostgreSQL integration tests
+
+Use the latest stable and mutually compatible versions available for these technologies.
+
+## Infrastructure
+
+Prepare the system to support:
+
+* Docker
+* Docker Compose for local development
+* Environment variables
+* Separate development, testing, and production configurations
+* HTTPS in production
+* Reverse proxy deployment such as Nginx
+* Secure database backups
+* Structured application logging
+
+---
+
+# 2. Main User Roles
+
+The system must support the following roles.
+
+## Super Admin
+
+The Super Admin can:
+
+* Manage administrators
+* View all departments
+* View all employees
+* View all attendance records
+* View all schedules
+* View all vacation requests
+* View system-wide reports
+* View security alerts
+* View audit logs
+* Suspend or reactivate accounts
+* Manage important system settings
+
+## Admin
+
+The Admin can:
+
+* Review new employee registrations
+* Approve or reject users
+* Assign employees to departments
+* Assign appropriate roles
+* Create departments
+* Edit departments
+* Assign department managers
+* Create weekly schedules
+* Create weekend schedules
+* View attendance
+* Correct attendance with a recorded reason
+* View vacation requests
+* View dashboard statistics
+* View appropriate audit information
+
+## Department Manager
+
+The Department Manager can:
+
+* View employees in their own department
+* View attendance for their own department
+* View their department schedule
+* Review authorised vacation requests
+* Receive relevant notifications
+
+A Department Manager must not access another department’s private information.
+
+## Direct Manager
+
+The Direct Manager can:
+
+* Review vacation requests from assigned employees
+* Approve or reject requests
+* View relevant employee schedules
+* View relevant attendance information
+
+## Employee
+
+The Employee can:
+
+* Register
+* Verify the account using OTP
+* Wait for admin approval
+* Log in after approval
+* View a personal dashboard
+* View weekly work schedules
+* View weekend duty assignments
+* Check in for attendance
+* View personal attendance history
+* Submit vacation requests
+* View request statuses
+* Receive notifications
+* View and manage active login sessions
+* Log out securely
+
+Apply the principle of least privilege.
+
+---
+
+# 3. User Registration and Approval Process
+
+Implement this exact account workflow.
+
+## Step 1: Registration
+
+The employee enters:
+
+* First name
+* Last name
+* Employee number
+* Work email
+* Phone number
+* Password
+* Password confirmation
+* Requested department, where appropriate
+
+After registration, set the account status to:
+
+`PENDING_OTP`
+
+## Step 2: OTP Verification
+
+Send a one-time verification code through email or SMS.
+
+After successful OTP verification, change the status to:
+
+`PENDING_ADMIN_APPROVAL`
+
+## Step 3: Admin Review
+
+An authorised Admin reviews the account.
+
+The Admin can:
+
+* Approve the user
+* Reject the user
+* Request corrected information
+
+After approval, change the status to:
+
+`ACTIVE`
+
+Only an `ACTIVE` account can log in.
+
+Support these account statuses:
+
+* `PENDING_OTP`
+* `PENDING_ADMIN_APPROVAL`
+* `ACTIVE`
+* `REJECTED`
+* `SUSPENDED`
+* `LOCKED`
+* `DEACTIVATED`
+* `PASSWORD_RESET_REQUIRED`
+
+Every account status change must be recorded in the audit log.
+
+A user must never be able to:
+
+* Approve their own account
+* Assign their own role
+* Change their own department permissions
+* Activate a suspended account
+
+---
+
+# 4. Authentication Requirements
+
+Implement:
+
+* Secure registration
+* OTP verification
+* Admin approval
+* Login
+* Logout
+* Access tokens
+* Refresh tokens
+* Refresh-token rotation
+* Session revocation
+* Password reset
+* Change password
+* Account lockout
+* Active session management
+* New-device notification
+* Force logout from all devices
+* Optional biometric unlock on the mobile device later
+
+Use a short-lived JWT access token.
+
+Recommended initial configuration:
+
+* Access token: approximately 10–15 minutes
+* Refresh token: approximately 3 days
+* OTP: approximately 5 minutes
+
+Keep these configurable through environment variables.
+
+Do not store raw refresh tokens in the database. Store a secure hash of each refresh token.
+
+When a refresh token is used:
+
+1. Validate it.
+2. Revoke the old refresh token.
+3. Create a new refresh token.
+4. Detect reuse of a revoked token.
+5. Revoke the entire token family when reuse is detected.
+6. Create a security audit event.
+7. Require the user to log in again.
+
+Revoke active sessions when:
+
+* The user logs out
+* The password changes
+* A password reset succeeds
+* The account is suspended
+* The account is deactivated
+* Refresh-token reuse is detected
+* An administrator forces logout
+* A serious security event occurs
+
+---
+
+# 5. Department Management
+
+Each department must include:
+
+* ID
+* Arabic name
+* English name
+* Description
+* Assigned manager
+* Active or inactive status
+* Creation timestamp
+* Update timestamp
+
+Administrators can:
+
+* Create departments
+* Update departments
+* Deactivate departments
+* Assign managers
+* Move employees between departments
+
+Do not permanently delete a department if it has historical attendance or schedule records. Deactivate it instead.
+
+---
+
+# 6. Weekly Work Schedules
+
+The workplace schedule can change every week.
+
+Implement:
+
+* Weekly schedules
+* Daily shifts
+* Individual employee schedules
+* Department schedules
+* Weekend duty
+* Shift start time
+* Shift end time
+* Schedule type
+* Effective start date
+* Effective end date
+* Schedule publication
+* Schedule notifications
+* Schedule history
+* Schedule versioning
+* Schedule change audit records
+
+Only authorised Admins can create or publish weekend schedules.
+
+Employees can view only:
+
+* Their personal schedule
+* General information they are authorised to see
+
+Managers can view schedules only for their authorised department or assigned employees.
+
+Once attendance has been recorded against a schedule, do not silently overwrite the schedule. Create a new version and retain the historical version.
+
+---
+
+# 7. Attendance Check-In
+
+The initial application requires check-in only.
+
+Do not add check-out unless requested later.
+
+An attendance record should contain:
+
+* Attendance ID
+* Employee
+* Department
+* Attendance date
+* Check-in timestamp
+* Related schedule
+* Attendance classification
+* Verification method
+* QR verification result, if used
+* Location verification result, if used
+* Device session reference
+* Creation timestamp
+* Administrative correction details, if applicable
+
+The backend must generate the official check-in time.
+
+Never trust:
+
+* The mobile device time
+* A time submitted by the frontend
+* The frontend’s attendance classification
+* A user ID submitted without checking ownership
+
+Prevent:
+
+* Duplicate check-in on the same attendance day
+* Checking in for another employee
+* Backdated check-in by employees
+* Check-in from suspended users
+* Check-in outside authorised conditions
+* Reuse of an old attendance request
+* Modification of another user’s attendance record
+
+Use database constraints and backend validation to prevent duplicate attendance.
+
+## Attendance Classifications
+
+Support:
+
+* `ON_TIME`
+* `LATE`
+* `UNSCHEDULED`
+* `WEEKEND_DUTY`
+* `APPROVED_ABSENCE`
+* `VACATION`
+* `MISSING`
+* `MANUALLY_CORRECTED`
+
+The backend must calculate the classification using the approved schedule and server time.
+
+Do not allow the mobile app to decide whether an employee is late or on time.
+
+---
+
+# 8. Attendance Verification Options
+
+Build the core attendance system first.
+
+Then prepare optional support for:
+
+* Dynamic QR check-in
+* Geofencing
+* Device risk signals
+
+These are additional security signals, not perfect proof that the employee is physically present.
+
+## Dynamic QR Check-In
+
+If implemented:
+
+* Generate a short-lived QR challenge
+* Sign the challenge securely
+* Set a short expiration time
+* Bind it to a workplace, date, or attendance session
+* Verify it on the backend
+* Prevent replay
+* Mark it as used where appropriate
+* Do not include sensitive employee information in the QR code
+* Record failed and successful attempts
+
+Do not use a permanent QR code printed on a wall.
+
+## Geofencing
+
+If implemented:
+
+* Request location only during check-in
+* Explain why location is needed
+* Validate the location on the backend
+* Define an allowed radius
+* Consider GPS accuracy
+* Detect obvious mock-location risks where practical
+* Do not continuously track employees
+* Do not store precise location longer than necessary
+* Store the verification result rather than unnecessary location history where possible
+* Provide an authorised exception process when GPS is unavailable
+
+Do not claim that geofencing completely prevents attendance fraud.
+
+---
+
+# 9. Vacation Request Workflow
+
+Implement this workflow:
+
+1. Employee submits a vacation request.
+2. Direct or main manager reviews it.
+3. Manager approves or rejects it.
+4. If approved, notify:
+
+   * The employee
+   * The Department Manager
+   * The responsible administrative person
+5. Update the employee’s schedule or attendance classification where required.
+
+A vacation request should include:
+
+* Request ID
+* Employee
+* Start date
+* End date
+* Vacation type
+* Reason
+* Optional attachment
+* Status
+* Submitted timestamp
+* Reviewed timestamp
+* Reviewer
+* Decision notes
+
+Statuses should include:
+
+* `PENDING`
+* `APPROVED`
+* `REJECTED`
+* `CANCELLED`
+
+Validate that:
+
+* End date is not before start date
+* An employee cannot approve their own request
+* Unauthorised managers cannot review the request
+* Overlapping requests are handled correctly
+* Attachments are protected
+
+---
+
+# 10. Notifications
+
+Implement in-app notifications first.
+
+Prepare the structure for push notifications later.
+
+Notifications should include:
+
+* OTP verification
+* Account approved
+* Account rejected
+* Schedule published
+* Schedule changed
+* Weekend duty assigned
+* Vacation request submitted
+* Vacation request approved
+* Vacation request rejected
+* Password changed
+* New device login
+* Account locked
+* Security alert
+* Administrative announcement
+
+Do not expose sensitive employee or security information in phone lock-screen notifications.
+
+---
+
+# 11. Admin Dashboard
+
+The Admin dashboard should show:
+
+* Pending user approvals
+* Active employees
+* Suspended accounts
+* Employees checked in today
+* Employees who are late
+* Missing attendance
+* Attendance by department
+* Weekend duty attendance
+* Pending vacation requests
+* Recent account lockouts
+* Recent security alerts
+* Recent administrative activity
+
+All statistics must come from secure backend endpoints.
+
+Do not calculate security-sensitive dashboard information only on the frontend.
+
+---
+
+# 12. Required Mobile Screens
+
+## Public Screens
+
+* Welcome screen
+* Login
+* Registration
+* OTP verification
+* Waiting for approval
+* Registration rejected
+* Forgot password
+* Reset password
+
+## Employee Screens
+
+* Employee dashboard
+* My schedule
+* Weekend duty
+* Attendance check-in
+* Attendance history
+* Submit vacation request
+* Vacation request history
+* Notifications
+* Profile
+* Change password
+* Active sessions
+* Security settings
+* Logout
+
+## Manager Screens
+
+* Manager dashboard
+* Department employees
+* Department attendance
+* Department schedule
+* Vacation approvals
+* Notifications
+
+## Admin Screens
+
+* Admin dashboard
+* Pending registrations
+* User management
+* Department management
+* Schedule management
+* Weekend schedule management
+* Attendance management
+* Vacation request management
+* Notifications
+* Audit logs
+* Security alerts
+* System settings
+
+The frontend must hide unauthorised screens, but this is not enough. The backend must separately enforce all permissions.
+
+---
+
+# 13. UI and Design Requirements
+
+Create a professional government-style interface that is:
+
+* Clean
+* Calm
+* Easy on the eyes
+* Easy to understand
+* Accessible
+* Suitable for daily workplace use
+* Responsive
+* Arabic and English ready
+* Right-to-left compatible
+* Consistent across screens
+
+Use:
+
+* Clear typography
+* Good spacing
+* Large touch targets
+* Accessible contrast
+* Clear validation messages
+* Loading indicators
+* Empty states
+* Error states
+* Confirmation messages
+* Confirmation dialogs for dangerous actions
+
+Do not use excessive animations.
+
+Do not make the application look like a social media app.
+
+---
+
+# 14. Backend Architecture
+
+Use a clean modular structure.
+
+Suggested backend packages:
+
+```text
+config
+security
+auth
+user
+department
+attendance
+schedule
+vacation
+notification
+audit
+session
+common
+exception
+```
+
+Each feature should contain appropriate:
+
+* Controllers
+* Services
+* Repositories
+* DTOs
+* Entities
+* Mappers
+* Validators
+
+Use:
+
+* Thin controllers
+* Service-layer business logic
+* Repository-layer data access
+* DTOs for API input and output
+* Centralised exception handling
+* Transaction management
+* Database migrations
+* Role and ownership checks
+
+Never expose JPA entities directly from API controllers.
+
+Never accept a complete entity object from the frontend for updates.
+
+Protect against mass assignment by defining specific request DTOs.
+
+---
+
+# 15. Suggested Database Entities
+
+Create an appropriate relational database model.
+
+## User
+
+Include:
+
+* `id`
+* `publicId`
+* `employeeNumber`
+* `email`
+* `phoneNumber`
+* `passwordHash`
+* `firstName`
+* `lastName`
+* `role`
+* `status`
+* `departmentId`
+* `managerId`
+* `failedLoginAttempts`
+* `lockedUntil`
+* `lastLoginAt`
+* `passwordChangedAt`
+* `approvedAt`
+* `approvedBy`
+* `createdAt`
+* `updatedAt`
+
+## Department
+
+Include:
+
+* `id`
+* `publicId`
+* `nameArabic`
+* `nameEnglish`
+* `description`
+* `managerId`
+* `active`
+* `createdAt`
+* `updatedAt`
+
+## Schedule
+
+Include:
+
+* `id`
+* `publicId`
+* `employeeId`
+* `departmentId`
+* `scheduleDate`
+* `shiftStart`
+* `shiftEnd`
+* `scheduleType`
+* `version`
+* `published`
+* `publishedAt`
+* `createdBy`
+* `createdAt`
+* `updatedAt`
+
+## Attendance
+
+Include:
+
+* `id`
+* `publicId`
+* `employeeId`
+* `departmentId`
+* `scheduleId`
+* `attendanceDate`
+* `checkInTimestamp`
+* `classification`
+* `verificationMethod`
+* `qrVerified`
+* `locationVerified`
+* `sessionId`
+* `createdAt`
+* `correctedAt`
+* `correctedBy`
+* `correctionReason`
+
+## VacationRequest
+
+Include:
+
+* `id`
+* `publicId`
+* `employeeId`
+* `startDate`
+* `endDate`
+* `vacationType`
+* `reason`
+* `attachmentReference`
+* `status`
+* `submittedAt`
+* `reviewedAt`
+* `reviewedBy`
+* `decisionNotes`
+
+## OtpVerification
+
+Include:
+
+* `id`
+* `userId`
+* `purpose`
+* `otpHash`
+* `expiresAt`
+* `attemptCount`
+* `usedAt`
+* `createdAt`
+
+## RefreshTokenSession
+
+Include:
+
+* `id`
+* `userId`
+* `tokenHash`
+* `tokenFamily`
+* `deviceReference`
+* `deviceName`
+* `issuedAt`
+* `expiresAt`
+* `revokedAt`
+* `replacedByTokenId`
+* `reuseDetected`
+* `lastUsedAt`
+
+## Notification
+
+Include:
+
+* `id`
+* `publicId`
+* `userId`
+* `type`
+* `title`
+* `message`
+* `read`
+* `createdAt`
+* `readAt`
+
+## AuditLog
+
+Include:
+
+* `id`
+* `eventType`
+* `actorId`
+* `targetId`
+* `outcome`
+* `timestamp`
+* `correlationId`
+* `sourceIpHash` or appropriately protected source information
+* `sessionReference`
+* `metadata`
+
+Use public UUIDs for API-facing identifiers where appropriate.
+
+Still enforce authorisation even when UUIDs are used.
+
+---
+
+# 16. Essential Security Requirements
+
+Security is the most important part of this system.
+
+Use secure-by-design, privacy-by-design, least privilege, deny-by-default, and defence-in-depth principles.
+
+Follow relevant guidance from:
+
+* OWASP Application Security Verification Standard
+* OWASP API Security
+* OWASP Mobile Application Security
+* NIST authentication guidance
+* Current Spring Security recommendations
+
+Do not merely mention security standards. Implement and test the controls.
+
+---
+
+# 17. Password Security
+
+Implement:
+
+* BCrypt or Argon2 password hashing
+* Strong adaptive hashing configuration
+* Minimum password requirements
+* Support for long passphrases
+* Maximum reasonable input length
+* Compromised-password protection where practical
+* Secure password change
+* Secure password reset
+* Password history if required by policy
+* Session revocation after password changes
+
+Never:
+
+* Store plaintext passwords
+* Encrypt passwords reversibly
+* Log passwords
+* Send passwords by email
+* Allow administrators to view passwords
+* Hardcode passwords
+* use a weak default password
+
+Password-reset tokens must:
+
+* Be cryptographically random
+* Be single-use
+* Expire quickly
+* Be stored as hashes
+* Be invalidated after use
+* Be invalidated when a newer token is generated
+
+---
+
+# 18. OTP Security
+
+OTP codes must:
+
+* Be generated using a cryptographically secure random generator
+* Expire after a short period
+* Be single-use
+* Have a maximum number of attempts
+* Have a resend cooldown
+* Be rate-limited
+* Invalidate the previous OTP when a new OTP is created
+* Be stored as a secure hash
+* Never appear in production logs
+* Never be included in production API responses
+
+Use generic responses to reduce account enumeration.
+
+For local development, create a clearly separated development-only OTP delivery method.
+
+The development OTP shortcut must be disabled automatically in production.
+
+---
+
+# 19. Access Control
+
+Implement role-based and ownership-based authorisation on the backend.
+
+Requirements:
+
+* Deny access by default
+* Validate the authenticated user for every protected request
+* Do not trust roles sent by the frontend
+* Employees can access only their own records
+* Managers can access only authorised employees
+* Department Managers can access only their department
+* Admin endpoints reject employees and ordinary managers
+* Only specific roles can modify attendance
+* Only authorised roles can publish schedules
+* Only authorised managers can approve vacation requests
+* Users cannot assign their own role
+* Users cannot approve themselves
+* Users cannot change protected account fields
+
+Protect against:
+
+* Horizontal privilege escalation
+* Vertical privilege escalation
+* Insecure direct object references
+* Broken function-level authorisation
+* Mass assignment
+
+Create automated tests for every major permission boundary.
+
+---
+
+# 20. API Security
+
+Treat all frontend data as untrusted.
+
+Implement:
+
+* Request DTO validation
+* String length limits
+* Email validation
+* Employee-number validation
+* Date validation
+* Enum validation
+* Pagination limits
+* Request-size limits
+* File-size limits
+* Rate limiting
+* Safe CORS configuration
+* Secure HTTP headers
+* Global exception handling
+* Generic authentication errors
+* Correlation IDs
+* Structured logging
+* Idempotency or replay controls for sensitive actions
+* Safe JSON parsing
+* Protection against excessive data exposure
+
+Use JPA parameterised queries.
+
+Never build SQL by concatenating user input.
+
+Do not return:
+
+* Password hashes
+* OTP hashes
+* Refresh-token hashes
+* Internal security fields
+* Stack traces
+* Database credentials
+* JWT signing details
+
+Do not expose unnecessary user data in list endpoints.
+
+---
+
+# 21. Rate Limiting and Brute-Force Protection
+
+Apply rate limits to:
+
+* Login
+* Registration
+* OTP generation
+* OTP verification
+* Password reset
+* Token refresh
+* Attendance check-in
+* File uploads
+* Administrative search endpoints
+
+Implement:
+
+* Failed login counting
+* Temporary account lockout
+* Progressive delays where suitable
+* IP or source-based rate signals
+* User-based rate limits
+* Security alerts
+* Audit records
+
+Do not permanently lock an account automatically.
+
+Do not create a system where an attacker can easily lock another user out forever.
+
+Use generic login errors such as:
+
+`Invalid credentials or account unavailable.`
+
+Do not reveal whether the email, password, account status, or employee number was incorrect.
+
+---
+
+# 22. JWT and Refresh-Token Security
+
+JWT requirements:
+
+* Strong signing keys
+* Secrets loaded from secure environment configuration
+* Signature validation
+* Expiration validation
+* Issuer validation
+* Audience validation
+* Token-type validation
+* Minimal claims
+* No sensitive personal information in tokens
+* Short expiration
+* Server-side status verification
+
+Do not rely only on the role stored in an old token.
+
+For important requests, verify the current user status and permissions from the database or a secure current-authorisation source.
+
+An account that becomes suspended must lose access even if an access token has not yet naturally expired.
+
+Refresh tokens must:
+
+* Be cryptographically random
+* Be stored only on the client as a raw value
+* Be stored as hashes on the server
+* Be rotated after every use
+* Belong to a token family
+* Support reuse detection
+* Support session revocation
+* Support device-session visibility
+
+Do not put refresh tokens inside ordinary application logs.
+
+---
+
+# 23. Mobile Security
+
+The React Native application must:
+
+* Store tokens in Expo SecureStore
+* Never store tokens in AsyncStorage
+* Clear secure tokens during logout
+* Clear cached private data during logout
+* Avoid printing API responses containing sensitive information
+* Disable debug logging in production
+* Use environment-based API configuration
+* Avoid hardcoded production secrets
+* Validate deep links
+* Protect password fields
+* Avoid exposing private information in screenshots where appropriate
+* Use secure production builds
+* Handle token expiration safely
+* Handle revoked sessions safely
+* Show a clear login screen after forced logout
+* Avoid placing secrets in the mobile application bundle
+
+Biometric authentication may unlock a locally stored session, but it must not replace backend authentication.
+
+Never include:
+
+* Database credentials
+* JWT signing secrets
+* SMS provider secrets
+* Email provider passwords
+* Administrative secrets
+
+inside the mobile application.
+
+---
+
+# 24. Transport and Production Security
+
+Production must use HTTPS only.
+
+Implement:
+
+* TLS
+* Secure reverse proxy configuration
+* HTTP-to-HTTPS redirection
+* Secure headers
+* Restricted CORS origins
+* No wildcard production CORS
+* No disabled certificate validation
+* No self-signed certificate acceptance in production
+* Protected API documentation
+* Restricted management endpoints
+
+Development may use local HTTP, but keep development and production configurations clearly separated.
+
+The production application must fail to start when:
+
+* JWT secrets are missing
+* Default secrets are used
+* Database credentials are missing
+* Required security configuration is invalid
+* Development-only OTP mode is enabled
+
+---
+
+# 25. Database Security
+
+Use:
+
+* A dedicated PostgreSQL application user
+* Least-privilege database permissions
+* Foreign keys
+* Unique constraints
+* Not-null constraints
+* Appropriate indexes
+* Flyway migrations
+* Transactions
+* Encrypted backups
+* Restricted network access
+
+Do not:
+
+* Connect using the PostgreSQL superuser
+* Expose PostgreSQL publicly
+* Store database passwords in source code
+* Commit database secrets
+* silently delete historical attendance
+* overwrite audit evidence
+
+Create database constraints for critical rules, including:
+
+* Unique employee number
+* Unique work email
+* Appropriate attendance uniqueness
+* Valid foreign-key relationships
+
+---
+
+# 26. Audit Logging
+
+Create tamper-resistant, append-oriented audit logging.
+
+Audit these events:
+
+* Registration
+* OTP request
+* OTP success
+* OTP failure
+* Login success
+* Login failure
+* Logout
+* Token refresh
+* Refresh-token reuse
+* Password reset request
+* Password reset completion
+* Password change
+* Account approval
+* Account rejection
+* Account suspension
+* Account reactivation
+* Role change
+* Department change
+* Schedule creation
+* Schedule modification
+* Schedule publication
+* Attendance check-in
+* Attendance correction
+* Vacation request
+* Vacation decision
+* New device login
+* Session revocation
+* Security-setting change
+* Administrative access to sensitive information
+
+Each audit record should include:
+
+* Event type
+* Actor
+* Target
+* Server timestamp
+* Outcome
+* Correlation ID
+* Session reference
+* Limited source information
+* Safe metadata
+
+Never include:
+
+* Passwords
+* OTP values
+* Access tokens
+* Refresh tokens
+* Signing keys
+* Database credentials
+* Unnecessary personal information
+
+Ordinary employees must not access audit logs.
+
+Audit logs must not be editable through ordinary application endpoints.
+
+---
+
+# 27. File Upload Security
+
+For vacation attachments:
+
+* Allow only approved file types
+* Verify real file content
+* Limit file size
+* Generate secure server-side filenames
+* Store files outside executable web directories
+* Prevent path traversal
+* Prevent filename injection
+* Scan uploads where practical
+* Require authentication and authorisation for download
+* Do not expose internal file paths
+* Record uploads and downloads
+* Apply retention rules
+
+Do not trust the file extension or MIME type provided by the phone.
+
+---
+
+# 28. Privacy Requirements
+
+Collect only information required for workforce operations.
+
+Implement:
+
+* Data minimisation
+* Role-based visibility
+* Department-based privacy
+* Retention rules
+* Secure account deactivation
+* Protected employee records
+* Limited location collection
+* Limited device information
+* Safe notification content
+* Secure logging
+* Secure backups
+
+Do not continuously track employee location.
+
+Do not collect private device information without a clear security reason.
+
+Clearly separate:
+
+* Operational employee data
+* Security data
+* Audit data
+* Temporary verification data
+
+---
+
+# 29. Threat Model
+
+Before finishing the system, create a threat model covering:
+
+* External attacker
+* Malicious employee
+* Rogue manager
+* Compromised administrator
+* Stolen phone
+* Stolen password
+* Token theft
+* Refresh-token replay
+* OTP guessing
+* OTP interception
+* Brute-force attack
+* User enumeration
+* Horizontal privilege escalation
+* Vertical privilege escalation
+* IDOR
+* SQL injection
+* Malicious file upload
+* Attendance fraud
+* QR replay
+* GPS spoofing
+* Device-time manipulation
+* Database breach
+* Database ransomware
+* Audit-log tampering
+* Insider data misuse
+* Denial-of-service
+* Vulnerable dependencies
+* Misconfigured production server
+* Exposed secrets
+* Insecure backups
+
+For each threat, document:
+
+1. Asset at risk
+2. Threat actor
+3. Attack method
+4. Likelihood
+5. Impact
+6. Preventive controls
+7. Detective controls
+8. Recovery process
+9. Remaining risk
+10. Test method
+
+Use STRIDE where helpful.
+
+---
+
+# 30. Testing Requirements
+
+Do not consider the system finished without automated testing.
+
+## Unit Tests
+
+Test:
+
+* Password validation
+* OTP creation
+* OTP expiry
+* OTP attempt limits
+* Account status transitions
+* Token generation
+* Token validation
+* Refresh-token rotation
+* Token reuse detection
+* Role checks
+* Department access checks
+* Duplicate attendance prevention
+* Attendance classification
+* Schedule calculations
+* Vacation approval rules
+* Audit event creation
+
+## Integration Tests
+
+Test:
+
+* Complete registration process
+* OTP verification
+* Admin approval
+* Active-user login
+* Inactive-user login rejection
+* Suspended-user rejection
+* Refresh-token rotation
+* Refresh-token replay detection
+* Logout
+* Password reset
+* Session revocation
+* Employee access
+* Manager access
+* Department separation
+* Admin endpoints
+* Attendance check-in
+* Duplicate check-in
+* Schedule publication
+* Vacation workflow
+* Database constraints
+
+Use Testcontainers with PostgreSQL instead of relying only on an in-memory database.
+
+## Security Tests
+
+Test:
+
+* Missing authentication
+* Expired token
+* Modified token
+* Wrong issuer
+* Wrong audience
+* Revoked session
+* Employee calling Admin endpoints
+* Manager reading another department
+* Employee reading another employee
+* User changing their own role
+* User approving their own account
+* SQL-injection payloads
+* Mass-assignment attempts
+* Invalid object IDs
+* Excessive login attempts
+* OTP guessing
+* OTP resend abuse
+* Password-reset abuse
+* Duplicate check-in
+* Client-time manipulation
+* QR replay
+* Malicious file upload
+* Sensitive data appearing in logs
+* Production startup with default secrets
+
+## Mobile Tests
+
+Test:
+
+* Registration
+* OTP flow
+* Waiting-for-approval screen
+* Login
+* Logout
+* Secure token storage
+* Expired session
+* Forced logout
+* Employee navigation
+* Manager navigation
+* Admin navigation
+* Attendance check-in
+* Duplicate attendance response
+* Network failure
+* Offline state
+* Loading state
+* Form validation
+* Arabic layout
+* English layout
+
+---
+
+# 31. API Endpoints
+
+Design clean REST endpoints.
+
+Suggested authentication endpoints:
+
+```text
+POST /api/v1/auth/register
+POST /api/v1/auth/verify-otp
+POST /api/v1/auth/resend-otp
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/logout
+POST /api/v1/auth/logout-all
+POST /api/v1/auth/forgot-password
+POST /api/v1/auth/reset-password
+POST /api/v1/auth/change-password
+GET  /api/v1/auth/sessions
+DELETE /api/v1/auth/sessions/{sessionId}
+```
+
+Suggested Admin endpoints:
+
+```text
+GET  /api/v1/admin/users/pending
+POST /api/v1/admin/users/{userId}/approve
+POST /api/v1/admin/users/{userId}/reject
+POST /api/v1/admin/users/{userId}/suspend
+POST /api/v1/admin/users/{userId}/reactivate
+GET  /api/v1/admin/users
+GET  /api/v1/admin/dashboard
+```
+
+Suggested department endpoints:
+
+```text
+GET    /api/v1/departments
+POST   /api/v1/departments
+GET    /api/v1/departments/{departmentId}
+PATCH  /api/v1/departments/{departmentId}
+POST   /api/v1/departments/{departmentId}/deactivate
+POST   /api/v1/departments/{departmentId}/manager
+```
+
+Suggested attendance endpoints:
+
+```text
+POST /api/v1/attendance/check-in
+GET  /api/v1/attendance/me
+GET  /api/v1/attendance/me/{attendanceId}
+GET  /api/v1/manager/attendance
+GET  /api/v1/admin/attendance
+POST /api/v1/admin/attendance/{attendanceId}/correct
+```
+
+Suggested schedule endpoints:
+
+```text
+GET  /api/v1/schedules/me
+GET  /api/v1/manager/schedules
+POST /api/v1/admin/schedules
+PATCH /api/v1/admin/schedules/{scheduleId}
+POST /api/v1/admin/schedules/{scheduleId}/publish
+GET  /api/v1/admin/schedules
+```
+
+Suggested vacation endpoints:
+
+```text
+POST /api/v1/vacation-requests
+GET  /api/v1/vacation-requests/me
+GET  /api/v1/manager/vacation-requests
+POST /api/v1/manager/vacation-requests/{requestId}/approve
+POST /api/v1/manager/vacation-requests/{requestId}/reject
+```
+
+Suggested notification endpoints:
+
+```text
+GET  /api/v1/notifications
+POST /api/v1/notifications/{notificationId}/read
+POST /api/v1/notifications/read-all
+```
+
+Suggested audit endpoints:
+
+```text
+GET /api/v1/admin/audit-logs
+GET /api/v1/admin/security-alerts
+```
+
+Refine the endpoint design where necessary, but keep it consistent and secure.
+
+---
+
+# 32. Project Folder Structure
+
+Create one main folder:
+
+```text
+asa-workforce/
+```
+
+Inside it, create:
+
+```text
+asa-workforce/
+├── backend/
+├── mobile/
+├── infrastructure/
+├── documentation/
+├── docker-compose.yml
+├── .gitignore
+└── README.md
+```
+
+## Backend Folder
+
+```text
+backend/
+├── src/
+├── pom.xml
+├── Dockerfile
+├── .env.example
+└── README.md
+```
+
+## Mobile Folder
+
+```text
+mobile/
+├── app/
+├── components/
+├── services/
+├── hooks/
+├── types/
+├── constants/
+├── validation/
+├── assets/
+├── app.json
+├── package.json
+├── .env.example
+└── README.md
+```
+
+## Documentation Folder
+
+Create:
+
+```text
+documentation/
+├── architecture.md
+├── security-design.md
+├── threat-model.md
+├── api-design.md
+├── database-design.md
+├── testing-report.md
+├── deployment-guide.md
+├── incident-response.md
+└── limitations.md
+```
+
+---
+
+# 33. Required Documentation
+
+Create and maintain:
+
+* Main README
+* Backend setup instructions
+* Mobile setup instructions
+* Environment-variable documentation
+* API documentation
+* Database schema
+* Entity-relationship diagram
+* System architecture diagram
+* Registration sequence diagram
+* Login and token-refresh diagram
+* Attendance flow diagram
+* Vacation request flow diagram
+* Threat model
+* Security-control checklist
+* Testing report
+* Deployment guide
+* Backup and restoration guide
+* Incident-response plan
+* Known limitations
+* Changelog
+
+Clearly mark every feature as:
+
+* Implemented
+* Partially implemented
+* Designed only
+* Future work
+
+Never claim that a feature is implemented unless working code and test evidence exist.
+
+---
+
+# 34. Environment Variables
+
+Create `.env.example` files without real secrets.
+
+Backend variables may include:
+
+```text
+SPRING_PROFILES_ACTIVE=
+DATABASE_URL=
+DATABASE_USERNAME=
+DATABASE_PASSWORD=
+JWT_ISSUER=
+JWT_AUDIENCE=
+JWT_ACCESS_SECRET=
+JWT_ACCESS_EXPIRATION_MINUTES=
+REFRESH_TOKEN_EXPIRATION_DAYS=
+OTP_EXPIRATION_MINUTES=
+OTP_MAX_ATTEMPTS=
+OTP_RESEND_COOLDOWN_SECONDS=
+EMAIL_PROVIDER_USERNAME=
+EMAIL_PROVIDER_PASSWORD=
+SMS_PROVIDER_KEY=
+ALLOWED_CORS_ORIGINS=
+FILE_STORAGE_PATH=
+MAX_UPLOAD_SIZE=
+```
+
+Mobile variables may include:
+
+```text
+EXPO_PUBLIC_API_BASE_URL=
+EXPO_PUBLIC_APP_ENV=
+```
+
+Never put backend secrets in variables prefixed with `EXPO_PUBLIC_`.
+
+---
+
+# 35. Development Stages
+
+Build the application in the following order.
+
+## Stage 1: Project Foundation
+
+* Create the main folder structure
+* Initialise Git
+* Create backend project
+* Create Expo mobile project
+* Configure PostgreSQL
+* Configure Docker Compose
+* Configure environment variables
+* Configure development, testing, and production profiles
+* Add README instructions
+* Confirm both projects run
+
+## Stage 2: Database and Core Models
+
+* Add Flyway
+* Create database migrations
+* Create User
+* Create Department
+* Create roles and statuses
+* Create audit support
+* Add constraints
+* Add entity tests
+
+## Stage 3: Secure Registration
+
+* Registration endpoint
+* Validation
+* Password hashing
+* OTP generation
+* OTP storage
+* OTP delivery abstraction
+* OTP verification
+* Resend protection
+* Admin approval
+* Audit logging
+* Automated tests
+
+## Stage 4: Secure Authentication
+
+* Login
+* JWT access tokens
+* Refresh tokens
+* Rotation
+* Reuse detection
+* Logout
+* Logout all
+* Active sessions
+* Account lockout
+* Rate limiting
+* Password reset
+* Security tests
+
+## Stage 5: Authorisation
+
+* Roles
+* Permissions
+* Ownership checks
+* Department restrictions
+* Admin restrictions
+* Manager restrictions
+* Access-control tests
+
+## Stage 6: Departments
+
+* Create and edit departments
+* Assign managers
+* Assign employees
+* Deactivate departments
+* Department tests
+
+## Stage 7: Schedules
+
+* Weekly schedules
+* Weekend schedules
+* Publication
+* Versioning
+* Notifications
+* Schedule tests
+
+## Stage 8: Attendance
+
+* Secure check-in
+* Server timestamp
+* Duplicate prevention
+* Classification
+* Attendance history
+* Manager views
+* Admin views
+* Correction workflow
+* Attendance tests
+
+## Stage 9: Vacation Requests
+
+* Employee submission
+* Manager decision
+* Notifications
+* Schedule integration
+* File attachments
+* Vacation tests
+
+## Stage 10: Mobile Application
+
+* Authentication screens
+* Secure token storage
+* Role-based navigation
+* Employee screens
+* Manager screens
+* Admin screens
+* Attendance check-in
+* Schedules
+* Vacation requests
+* Notifications
+* Arabic and English support
+
+## Stage 11: Optional Attendance Controls
+
+* Dynamic QR
+* Geofencing
+* Device-session management
+* Fraud-risk signals
+
+## Stage 12: Security Hardening
+
+* Dependency scanning
+* Static analysis
+* Secret scanning
+* Log review
+* Production configuration review
+* Security testing
+* Backup and restoration testing
+
+## Stage 13: Final Documentation and Evidence
+
+* Architecture diagrams
+* Database diagram
+* API documentation
+* Screenshots
+* Test results
+* Threat model
+* Security evaluation
+* Limitations
+* Deployment guide
+
+---
+
+# 36. How You Must Work
+
+Do not attempt to generate the entire application in one uncontrolled change.
+
+Work stage by stage.
+
+At the beginning of every stage:
+
+1. State the goal.
+2. List the files you will create or modify.
+3. Explain the security considerations.
+4. Explain how the stage will be tested.
+
+After every stage:
+
+1. Run the code.
+2. Run relevant tests.
+3. Fix compilation errors.
+4. Fix failing tests.
+5. Explain what was completed.
+6. Explain how to run it.
+7. Explain any new command, window, simulator, process, warning, or configuration.
+8. Update the documentation.
+9. Create a clear Git commit.
+
+Do not move to the next stage while the current stage has serious errors.
+
+Use small, meaningful Git commits such as:
+
+```text
+chore: initialise workforce project structure
+feat: add secure employee registration
+feat: implement OTP verification
+feat: add admin account approval
+feat: implement rotating refresh tokens
+test: add authentication integration tests
+security: add refresh-token reuse detection
+```
+
+---
+
+# 37. Coding Rules
+
+* Write clean and understandable code
+* Use TypeScript strict mode
+* Use clear Java classes and package names
+* Use DTOs
+* Use mappers
+* Use enums
+* Use validation
+* Use centralised exceptions
+* Use database migrations
+* Add automated tests
+* Add comments for important security decisions
+* Avoid unnecessary complexity
+* Do not create microservices
+* Do not duplicate logic
+* Do not disable security for convenience
+* Do not suppress warnings without explanation
+* Do not commit secrets
+* Do not use default passwords
+* Do not use wildcard CORS in production
+* Do not expose entities directly
+* Do not log sensitive data
+* Do not trust frontend authorisation
+* Do not trust client timestamps
+* Do not fake test results
+* Do not claim something is secure without evidence
+
+---
+
+# 38. Definition of Completion
+
+The application is complete only when:
+
+* The backend starts successfully
+* The mobile application starts successfully
+* PostgreSQL works
+* Database migrations work
+* Registration works
+* OTP verification works
+* Admin approval works
+* Only active users can log in
+* Suspended users cannot access the system
+* Passwords are securely hashed
+* Access tokens expire
+* Refresh tokens rotate
+* Refresh-token replay is detected
+* Logout revokes sessions
+* Password reset revokes sessions
+* Role restrictions work
+* Department isolation works
+* Weekly schedules work
+* Weekend schedules work
+* Attendance check-in works
+* Duplicate attendance is prevented
+* Server time is used
+* Attendance classification works
+* Vacation requests work
+* Notifications work
+* Audit logging works
+* Sensitive data is absent from logs
+* Mobile tokens are securely stored
+* Arabic and English layouts work
+* Critical automated tests pass
+* Production configuration rejects weak or missing secrets
+* Documentation matches the implemented system
+* Known limitations are honestly documented
+
+---
+
+# 39. Start Now
+
+Begin with Stage 1 only.
+
+First:
+
+1. Create the complete project folder structure.
+2. Initialise the Spring Boot backend.
+3. Initialise the React Native Expo TypeScript mobile application.
+4. Configure PostgreSQL and Docker Compose.
+5. Add development, testing, and production configurations.
+6. Add `.gitignore`.
+7. Add safe `.env.example` files.
+8. Add the initial README.
+9. Run the backend.
+10. Run the mobile application.
+11. Explain every command used.
+12. Explain why every dependency was chosen.
+13. Do not implement authentication yet.
+14. Stop after Stage 1 is running and tested, then provide the results and the plan for Stage 2.

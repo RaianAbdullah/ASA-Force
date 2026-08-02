@@ -1,0 +1,5 @@
+- [PostgreSQL JDBC URL format](pg-jdbc-url.md) — use PG* vars to build JDBC URL; don't prefix DATABASE_URL with jdbc:
+- [Hibernate vs PostgreSQL type mapping](hibernate-pg-types.md) — CHAR(n)→bpchar and INET need Flyway migrations to VARCHAR/TEXT for Hibernate validation to pass
+- [Flyway migration immutability](flyway-migration-immutability.md) — never edit a migration after it's been applied; fix with a new Vn+1 migration + `mvn flyway:repair` if checksum drifts
+- [Java 17 switch syntax limit](java17-switch.md) — guarded switch (case X when …) is Java 21+; use if-else for Java 17 target
+- [expo-notifications permission type](expo-notifications-perms.md) — PermissionResponse base type not always resolved; cast result to any and use .granted boolean

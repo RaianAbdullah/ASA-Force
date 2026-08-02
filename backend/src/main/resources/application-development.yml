@@ -1,0 +1,85 @@
+# Development profile (SPRING_PROFILES_ACTIVE=development)
+# Used on local developer machines.
+
+logging:
+  level:
+    com.asa.workforce: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: INFO
+    org.flywaydb: INFO
+
+app:
+  cors:
+    allowed-origins: "*"
+
+  # OTP logging — dev only. Set to false (or omit) in production.
+  otp:
+    log-to-console: true
+
+  # Trusted reverse-proxy CIDR prefixes for X-Forwarded-For extraction.
+  # Empty = never trust X-Forwarded-For (safe default for single-server dev).
+  trusted-proxy-cidrs: ""
+
+  # ── Office geofence ────────────────────────────────────────
+  # Set these to your real office coordinates before deployment.
+  # radius-meters: how close the employee must be to check in.
+  # Dev tip: set radius-meters to 999999 to disable distance checks,
+  #   or send bypassGeofence: true in the check-in request body.
+  geofence:
+    # MM9W+W5 Al Olaya, Riyadh
+    latitude: 24.669812
+    longitude: 46.695437
+    radius-meters: 100
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+spring:
+  datasource:
+    # Individual PG* variables avoid embedding credentials in a connection URL.
+    url: "jdbc:postgresql://${PGHOST}:${PGPORT:5432}/${PGDATABASE}"
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 20000
+      idle-timeout: 300000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        default_schema: public
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    out-of-order: false
+
+# ── JWT ─────────────────────────────────────────────────────────────────────
+jwt:
+  secret: ${JWT_SECRET:ASA_WORKFORCE_DEV_ONLY_INSECURE_SECRET_SET_JWT_SECRET_IN_PRODUCTION_64_BYTES_MIN!!}
+  # Short-lived access token — 15 minutes in production, relaxed to 60 min for dev convenience
+  access-expiry-minutes: 60
+  # Rotating refresh token — 3 days
+  refresh-expiry-days: 3
+
+# ── Async + scheduling (rate-limiter cleanup, push retries) ──────────────────
+spring.task:
+  execution.pool:
+    core-size: 4
+    max-size: 8
+    queue-capacity: 100
+  scheduling.pool.size: 2

@@ -1,0 +1,71 @@
+services:
+  - type: web
+    name: asa-force-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/actuator/health
+    autoDeployTrigger: commit
+    domains:
+      - api.asa-force.com
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PGHOST
+        fromDatabase:
+          name: asa-force-db
+          property: host
+      - key: PGPORT
+        fromDatabase:
+          name: asa-force-db
+          property: port
+      - key: PGDATABASE
+        fromDatabase:
+          name: asa-force-db
+          property: database
+      - key: PGUSER
+        fromDatabase:
+          name: asa-force-db
+          property: user
+      - key: PGPASSWORD
+        fromDatabase:
+          name: asa-force-db
+          property: password
+
+  - type: web
+    name: asa-force-web
+    runtime: static
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/asa-web build
+    staticPublishPath: ./artifacts/asa-web/dist/public
+    autoDeployTrigger: commit
+    domains:
+      - asa-force.com
+    envVars:
+      - key: BASE_PATH
+        value: /
+      - key: VITE_API_BASE_URL
+        value: https://api.asa-force.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+
+databases:
+  - name: asa-force-db
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: "16"
+    databaseName: asa_workforce
+    user: asa_force
+    ipAllowList: []

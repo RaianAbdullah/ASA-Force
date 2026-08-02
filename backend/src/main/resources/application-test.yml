@@ -1,0 +1,31 @@
+# Test profile (SPRING_PROFILES_ACTIVE=test)
+# Used by automated tests. Testcontainers provides a real PostgreSQL instance.
+
+logging:
+  level:
+    com.asa.workforce: DEBUG
+    org.springframework.security: WARN
+
+# Spring Boot test slice configuration
+spring:
+  main:
+    allow-bean-definition-overriding: true
+
+# =====================================================================
+# Stage 2+ test configuration — uncomment when adding database support
+# =====================================================================
+#
+# spring:
+#   test:
+#     database:
+#       replace: none   # Let Testcontainers manage the datasource
+#   flyway:
+#     enabled: true
+#   jpa:
+#     hibernate:
+#       ddl-auto: validate
+#     open-in-view: false
+#   data:
+#     redis:
+#       host: ${test.redis.host:localhost}
+#       port: ${test.redis.port:6379}
