@@ -14,10 +14,10 @@ spring:
       max-request-size: 10MB
 
 server:
-  # PORT is injected by the Replit artifact workflow (default 8080)
+  # Hosting platforms can inject PORT; local development defaults to 8080.
   port: ${PORT:8080}
   servlet:
-    # Context path must match the artifact proxy path (/api)
+    # All API routes are hosted under /api.
     # All controllers are relative to this prefix.
     context-path: /api
   compression:

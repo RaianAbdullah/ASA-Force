@@ -22,13 +22,6 @@ This is the backend API for the **ASA Workforce** secure mobile attendance syste
 | Testing         | JUnit 5, Mockito, Testcontainers    |
 | Build           | Maven 3.9                           |
 
-## Quick Start (Replit)
-
-The backend is managed by the api-server artifact workflow. It starts automatically.
-
-Health check: `GET /api/healthz`
-Swagger UI (dev): `GET /api/swagger-ui.html`
-
 ## Quick Start (Local Development)
 
 ```bash
@@ -53,7 +46,7 @@ All endpoints are served under `/api`:
 
 ```
 Development:  http://localhost:8080/api
-Production:   https://your-domain.example.gov/api
+Production:   https://api.asa-force.com/api
 ```
 
 ## Development Stages

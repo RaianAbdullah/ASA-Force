@@ -6,7 +6,7 @@
 
 ## Technology
 
-- **PostgreSQL 16** via Replit's managed PostgreSQL
+- **PostgreSQL 16** hosted on Render in production and Docker locally
 - **Flyway** for versioned migrations
 - **Spring Data JPA / Hibernate** for ORM
 

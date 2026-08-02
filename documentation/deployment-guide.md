@@ -4,13 +4,13 @@
 
 ---
 
-## Replit Development Environment
+## Hosted Environment
 
-The application runs automatically in the Replit preview.
+Production is deployed through the repository's Render Blueprint:
 
-- **Backend**: Spring Boot at `GET /api/healthz`
-- **Mobile**: Expo app at preview root `/`
-- **Database**: Replit managed PostgreSQL (available via `DATABASE_URL`)
+- **Web**: Render static site at `https://asa-force.com`
+- **Backend**: Render web service at `https://api.asa-force.com`
+- **Database**: Render PostgreSQL 16
 
 ## Local Development
 

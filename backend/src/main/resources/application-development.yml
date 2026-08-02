@@ -1,5 +1,5 @@
 # Development profile (SPRING_PROFILES_ACTIVE=development)
-# Used in the Replit environment and local developer machines.
+# Used on local developer machines.
 
 logging:
   level:
@@ -39,7 +39,7 @@ springdoc:
 
 spring:
   datasource:
-    # Replit also exposes individual PG* vars — safer than parsing DATABASE_URL
+    # Individual PG* variables avoid embedding credentials in a connection URL.
     url: "jdbc:postgresql://${PGHOST}:${PGPORT:5432}/${PGDATABASE}"
     username: ${PGUSER}
     password: ${PGPASSWORD}

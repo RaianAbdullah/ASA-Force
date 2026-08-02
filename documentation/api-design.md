@@ -9,8 +9,8 @@
 All endpoints are prefixed with `/api`. Versioning is via URL path: `/api/v1/`.
 
 ```
-Development:  https://<replit-domain>/api/v1
-Production:   https://asa-workforce.example.gov/api/v1
+Development:  http://localhost:8080/api/v1
+Production:   https://api.asa-force.com/api/v1
 ```
 
 ## Response Envelope

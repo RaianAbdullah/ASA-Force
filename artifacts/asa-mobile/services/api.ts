@@ -2,7 +2,7 @@
  * ASA Workforce — API service layer
  *
  * Base URL: the api-server artifact proxies /api → Spring Boot :8080.
- * EXPO_PUBLIC_DOMAIN is injected by the dev script as $REPLIT_DEV_DOMAIN.
+ * EXPO_PUBLIC_DOMAIN can be set to the deployed API host for device builds.
  *
  * Automatic token refresh:
  *   - On any 401 from an authenticated request, the client silently tries
