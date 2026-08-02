@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { hasAnyRole } from '@/services/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface NavItem {
   href: string;
@@ -58,6 +59,7 @@ const adminNav: NavItem[] = [
 
 export const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session, logout } = useAuth();
+  const { isRTL } = useLanguage();
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
@@ -99,7 +101,10 @@ export const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   );
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row-reverse bg-background text-foreground selection:bg-primary/30">
+    <div className={cn(
+      'min-h-[100dvh] flex flex-col bg-background text-foreground selection:bg-primary/30',
+      isRTL ? 'md:flex-row-reverse' : 'md:flex-row',
+    )}>
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -108,7 +113,7 @@ export const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => 
           </div>
           <span className="font-semibold text-base text-white truncate">إدارة العمليات الأمنية</span>
         </div>
-        <div className="flex items-center gap-1 shrink-0 mr-2">
+        <div className="flex items-center gap-1 shrink-0 ms-2">
           {isAdmin && (
             <Button
               variant="ghost" size="icon"
@@ -135,8 +140,13 @@ export const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 right-0 z-50 w-72 bg-sidebar border-l border-border transform transition-transform duration-300 ease-in-out md:relative md:transform-none flex flex-col",
-        isMobileMenuOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
+        'fixed inset-y-0 z-50 w-72 bg-sidebar border-border transform transition-transform duration-300 ease-in-out md:relative md:transform-none flex flex-col',
+        isRTL ? 'right-0 border-l' : 'left-0 border-r',
+        isMobileMenuOpen
+          ? 'translate-x-0'
+          : isRTL
+            ? 'translate-x-full md:translate-x-0'
+            : '-translate-x-full md:translate-x-0',
       )}>
         <div className="p-6 hidden md:flex items-center gap-3 border-b border-border/50">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_15px_rgba(0,230,118,0.15)]">
