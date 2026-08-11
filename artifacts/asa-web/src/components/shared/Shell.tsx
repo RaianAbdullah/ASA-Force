@@ -104,8 +104,7 @@ export const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   return (
     <div className={cn(
-      'min-h-[100dvh] flex flex-col bg-background text-foreground selection:bg-primary/30',
-      isRTL ? 'md:flex-row-reverse' : 'md:flex-row',
+      'min-h-[100dvh] flex flex-col md:flex-row bg-background text-foreground selection:bg-primary/30',
     )}>
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
