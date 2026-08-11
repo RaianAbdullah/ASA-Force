@@ -32,5 +32,6 @@ export const queryKeys = {
     pendingRegistrations: (page?: number) => ['admin-pending-registrations', page],
     employeesAll: ['admin-employees-all'],
     employeesActive: ['admin-employees-active'],
+    employeeNotes: (employeeId: string) => ['admin-employee-notes', employeeId],
   }
 };

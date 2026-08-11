@@ -24,6 +24,7 @@ import { Messages } from '@/pages/employee/Messages';
 import { Announcements } from '@/pages/employee/Announcements';
 import { ShiftSwaps } from '@/pages/employee/ShiftSwaps';
 import { Profile } from '@/pages/employee/Profile';
+import { MyNotes } from '@/pages/employee/MyNotes';
 
 import { AdminDashboard } from '@/pages/admin/AdminDashboard';
 import { Employees } from '@/pages/admin/Employees';
@@ -122,6 +123,7 @@ function Router() {
       <Route path="/announcements"><ProtectedRoute component={Announcements} /></Route>
       <Route path="/shift-swap"><ProtectedRoute component={ShiftSwaps} /></Route>
       <Route path="/profile"><ProtectedRoute component={Profile} /></Route>
+      <Route path="/my-notes"><ProtectedRoute component={MyNotes} /></Route>
 
       {/* Admin (Protected) */}
       <Route path="/admin"><ProtectedRoute component={AdminDashboard} adminOnly /></Route>

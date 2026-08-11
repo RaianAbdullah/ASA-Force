@@ -366,6 +366,23 @@ export const arabicToEnglish: Record<string, string> = {
   'يوم': 'days',
   'يوم سعيد وعمل مثمر!': 'Have a great and productive day!',
   'يوم متبقي': 'days remaining',
+  'ملاحظات الموظف': 'Employee notes',
+  'إضافة ملاحظة جديدة': 'Add a new note',
+  'ملاحظة عامة': 'General note',
+  'الأداء': 'Performance',
+  'السلوك': 'Conduct',
+  'إشادة': 'Commendation',
+  'اكتب الملاحظة بوضوح وموضوعية...': 'Write the note clearly and objectively...',
+  'حفظ الملاحظة': 'Save note',
+  'سجل الملاحظات': 'Note history',
+  'أضيفت بواسطة:': 'Added by:',
+  'لا توجد ملاحظات مسجلة لهذا الموظف': 'No notes have been recorded for this employee',
+  'تمت إضافة الملاحظة': 'Note added',
+  'حُفظت الملاحظة في سجل الموظف': 'The note was saved to the employee record',
+  'تعذر إضافة الملاحظة': 'Unable to add the note',
+  'ملاحظاتي الإدارية': 'My management notes',
+  'الملاحظات المسجلة من مدير قسمك': 'Notes recorded by your department manager',
+  'لا توجد ملاحظات مسجلة لك': 'No notes have been recorded for you',
 };
 
 export type Locale = 'ar' | 'en';

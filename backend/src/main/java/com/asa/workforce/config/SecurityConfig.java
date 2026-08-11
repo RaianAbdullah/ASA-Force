@@ -151,6 +151,8 @@ public class SecurityConfig {
                 ).authenticated()
                 .requestMatchers(HttpMethod.GET,  "/v1/auth/sessions").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/v1/auth/sessions/**").authenticated()
+                // Employee notes: the service enforces self/own-department access.
+                .requestMatchers(HttpMethod.GET, "/v1/admin/employees/*/notes").authenticated()
                 // Swagger — only when enabled (disabled in production profile)
                 .requestMatchers(
                     "/swagger-ui/**",

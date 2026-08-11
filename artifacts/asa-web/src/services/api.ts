@@ -141,6 +141,17 @@ export interface EmployeeSummaryDto {
   vacationDaysPerYear?: number;
 }
 
+export interface EmployeeNoteDto {
+  id: string;
+  employeeId: string;
+  category: 'GENERAL' | 'PERFORMANCE' | 'CONDUCT' | 'COMMENDATION';
+  note: string;
+  authorId: string;
+  authorNameAr: string;
+  authorRole: string;
+  createdAt: string;
+}
+
 export interface DepartmentDto {
   id: string;
   nameEn: string;
@@ -270,6 +281,12 @@ export const adminApi = {
   createEmployee: (body: any) => request<any>('/v1/admin/employees', { method: 'POST', body: JSON.stringify(body) }),
   updateEmployee: (id: string, body: any) => request<any>(`/v1/admin/employees/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteEmployee: (id: string) => request<any>(`/v1/admin/employees/${id}`, { method: 'DELETE' }),
+  listEmployeeNotes: (id: string) => request<EmployeeNoteDto[]>(`/v1/admin/employees/${id}/notes`),
+  addEmployeeNote: (id: string, body: { note: string; category: EmployeeNoteDto['category'] }) =>
+    request<EmployeeNoteDto>(`/v1/admin/employees/${id}/notes`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
 
 export const attendanceApi = {

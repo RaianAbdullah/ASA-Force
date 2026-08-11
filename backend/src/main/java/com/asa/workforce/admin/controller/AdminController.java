@@ -5,9 +5,12 @@ import com.asa.workforce.admin.dto.ApproveRegistrationRequest;
 import com.asa.workforce.admin.dto.CreateEmployeeRequest;
 import com.asa.workforce.admin.dto.CreateEmployeeResponse;
 import com.asa.workforce.admin.dto.EmployeeSummaryDto;
+import com.asa.workforce.admin.dto.CreateEmployeeNoteRequest;
+import com.asa.workforce.admin.dto.EmployeeNoteDto;
 import com.asa.workforce.admin.dto.PendingEmployeeDto;
 import com.asa.workforce.admin.dto.UpdateEmployeeRequest;
 import com.asa.workforce.admin.service.AdminService;
+import com.asa.workforce.admin.service.EmployeeNoteService;
 import com.asa.workforce.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -37,6 +40,7 @@ import java.util.UUID;
 public class AdminController {
 
     private final AdminService adminService;
+    private final EmployeeNoteService employeeNoteService;
 
     // ── GET /v1/admin/registrations/pending ──────────────────────────────────
 
@@ -143,5 +147,27 @@ public class AdminController {
 
         Map<String, Object> result = adminService.deleteEmployee(employeeId, auth.getName());
         return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    @GetMapping("/employees/{employeeId}/notes")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_MANAGER','EMPLOYEE')")
+    @Operation(summary = "List protected management notes for an employee")
+    public ResponseEntity<ApiResponse<List<EmployeeNoteDto>>> listEmployeeNotes(
+            @PathVariable UUID employeeId,
+            Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                employeeNoteService.list(employeeId, auth.getName())));
+    }
+
+    @PostMapping("/employees/{employeeId}/notes")
+    @PreAuthorize("hasRole('DEPARTMENT_MANAGER')")
+    @Operation(summary = "Add a protected management note to an employee record")
+    public ResponseEntity<ApiResponse<EmployeeNoteDto>> addEmployeeNote(
+            @PathVariable UUID employeeId,
+            @Valid @RequestBody CreateEmployeeNoteRequest noteRequest,
+            Authentication auth,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                employeeNoteService.create(employeeId, noteRequest, auth.getName(), request)));
     }
 }

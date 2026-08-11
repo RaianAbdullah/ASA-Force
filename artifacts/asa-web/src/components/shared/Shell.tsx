@@ -22,7 +22,8 @@ import {
   Menu,
   X,
   Shield,
-  UserCircle2
+  UserCircle2,
+  StickyNote
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,6 +45,7 @@ const employeeNav: NavItem[] = [
   { href: '/announcements', label: 'الإشعارات والتبليغات', icon: Bell },
   { href: '/shift-swap', label: 'تبديل الورديات', icon: Repeat },
   { href: '/profile', label: 'الملف الشخصي', icon: User },
+  { href: '/my-notes', label: 'ملاحظاتي الإدارية', icon: StickyNote },
 ];
 
 const adminNav: NavItem[] = [

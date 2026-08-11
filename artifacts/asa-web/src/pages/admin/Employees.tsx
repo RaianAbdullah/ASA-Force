@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi, departmentApi } from '@/services/api';
+import { adminApi, departmentApi, type EmployeeSummaryDto, type EmployeeNoteDto } from '@/services/api';
+import { loadSession } from '@/services/auth';
 import { queryKeys } from '@/services/queryKeys';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -8,6 +9,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -15,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Search, Plus, UserCog, Loader2, Copy, Check } from 'lucide-react';
+import { Search, Plus, UserCog, Loader2, Copy, Check, StickyNote, MessageSquarePlus } from 'lucide-react';
 
 const employeeSchema = z.object({
   nationalId: z.string().min(10, 'رقم الهوية يجب أن يكون 10 أرقام على الأقل'),
@@ -32,6 +34,11 @@ export const Employees: React.FC = () => {
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [noteEmployee, setNoteEmployee] = useState<EmployeeSummaryDto | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [noteCategory, setNoteCategory] = useState<EmployeeNoteDto['category']>('GENERAL');
+  const session = loadSession();
+  const canManageNotes = session?.role === 'DEPARTMENT_MANAGER';
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -66,6 +73,29 @@ export const Employees: React.FC = () => {
     }
   });
 
+  const { data: employeeNotes, isLoading: notesLoading } = useQuery({
+    queryKey: queryKeys.admin.employeeNotes(noteEmployee?.id || ''),
+    queryFn: () => adminApi.listEmployeeNotes(noteEmployee!.id),
+    enabled: !!noteEmployee,
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: () => adminApi.addEmployeeNote(noteEmployee!.id, {
+      note: noteText.trim(),
+      category: noteCategory,
+    }),
+    onSuccess: () => {
+      setNoteText('');
+      setNoteCategory('GENERAL');
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.employeeNotes(noteEmployee!.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.employeesAll });
+      toast({ title: 'تمت إضافة الملاحظة', description: 'حُفظت الملاحظة في سجل الموظف' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'خطأ', description: error.message || 'تعذر إضافة الملاحظة', variant: 'destructive' });
+    },
+  });
+
   const filteredEmployees = employees?.filter(emp => {
     const matchesSearch = 
       (emp.firstNameAr + ' ' + emp.lastNameAr).includes(searchTerm) || 
@@ -81,6 +111,13 @@ export const Employees: React.FC = () => {
     WEEKEND_MANAGER: 'مدير عطلة',
     RESPONSIBLE_OFFICER: 'ضابط مسؤول',
     EMPLOYEE: 'موظف',
+  };
+
+  const noteCategoryMap: Record<EmployeeNoteDto['category'], string> = {
+    GENERAL: 'ملاحظة عامة',
+    PERFORMANCE: 'الأداء',
+    CONDUCT: 'السلوك',
+    COMMENDATION: 'إشادة',
   };
 
   return (
@@ -157,9 +194,23 @@ export const Employees: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 text-left">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
-                        <UserCog className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {canManageNotes && session?.departmentNameAr === emp.departmentNameAr && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="ملاحظات الموظف"
+                            aria-label="ملاحظات الموظف"
+                            className="h-8 w-8 text-muted-foreground hover:text-amber-400"
+                            onClick={() => setNoteEmployee(emp)}
+                          >
+                            <StickyNote className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                          <UserCog className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -175,6 +226,83 @@ export const Employees: React.FC = () => {
           </div>
         )}
       </Card>
+
+      <Dialog open={!!noteEmployee} onOpenChange={(open) => {
+        if (!open) {
+          setNoteEmployee(null);
+          setNoteText('');
+          setNoteCategory('GENERAL');
+        }
+      }}>
+        <DialogContent className="sm:max-w-[620px] bg-card border-border max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-right">ملاحظات الموظف</DialogTitle>
+            <DialogDescription className="text-right">
+              {noteEmployee
+                ? `${noteEmployee.firstNameAr} ${noteEmployee.lastNameAr} — ${noteEmployee.departmentNameAr || 'القسم غير محدد'}`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-black/20 p-4 space-y-3">
+              <div className="flex items-center gap-2 font-medium">
+                <MessageSquarePlus className="h-4 w-4 text-primary" />
+                إضافة ملاحظة جديدة
+              </div>
+              <Select value={noteCategory} onValueChange={(value) => setNoteCategory(value as EmployeeNoteDto['category'])}>
+                <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(noteCategoryMap).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Textarea
+                value={noteText}
+                onChange={(event) => setNoteText(event.target.value)}
+                placeholder="اكتب الملاحظة بوضوح وموضوعية..."
+                maxLength={2000}
+                className="min-h-28 bg-card"
+              />
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground">{noteText.length}/2000</span>
+                <Button
+                  disabled={!noteText.trim() || addNoteMutation.isPending}
+                  onClick={() => addNoteMutation.mutate()}
+                >
+                  {addNoteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                  حفظ الملاحظة
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="font-semibold">سجل الملاحظات</h3>
+              {notesLoading ? (
+                <LoadingSpinner />
+              ) : employeeNotes?.length ? (
+                employeeNotes.map((note) => (
+                  <div key={note.id} className="rounded-xl border border-border p-4 bg-black/10 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Badge variant="outline">{noteCategoryMap[note.category]}</Badge>
+                      <time className="text-xs text-muted-foreground" dir="ltr">
+                        {new Date(note.createdAt).toLocaleString('ar-SA')}
+                      </time>
+                    </div>
+                    <p className="whitespace-pre-wrap leading-7">{note.note}</p>
+                    <p className="text-xs text-muted-foreground">أضيفت بواسطة: {note.authorNameAr}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground">
+                  لا توجد ملاحظات مسجلة لهذا الموظف
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="sm:max-w-[500px] bg-card border-border">
