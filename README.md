@@ -1,21 +1,19 @@
 # ASA-Force
 
-**Secure Workforce Mobile Application System**
+*Secure Workforce Mobile Application System**
 
-A government-grade workforce management system for secure attendance tracking, scheduling, and vacation management.
+A government workforce management system for secure attendance tracking, scheduling, and vacation management.
 
----
-
-## Architecture
+# Architecture
 
 ```
 asa-workforce/
-├── backend/          Spring Boot 3.4 API (Java 17)
-├── artifacts/
-│   └── asa-mobile/   React Native / Expo mobile app (TypeScript)
-├── documentation/    Architecture, security, threat model, API design
-├── docker-compose.yml  Local development environment
-└── README.md
+backend/          Spring Boot 3.4 API (Java 17)
+artifacts/
+asa-mobile/   React Native / Expo mobile app (TypeScript)
+documentation/    Architecture, security, threat model, API design
+docker-compose.yml  Local development environment
+README.md
 ```
 
 ## Components
