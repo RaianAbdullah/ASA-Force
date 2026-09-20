@@ -5,6 +5,7 @@ import com.asa.workforce.common.dto.ApiResponse;
 import com.asa.workforce.entity.Employee;
 import com.asa.workforce.entity.PushToken;
 import com.asa.workforce.notification.dto.RegisterTokenRequest;
+import com.asa.workforce.notification.dto.RegisterPendingTokenRequest;
 import com.asa.workforce.repository.EmployeeRepository;
 import com.asa.workforce.repository.PushTokenRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,22 +50,42 @@ public class NotificationController {
         String platform = req.getPlatform() != null ? req.getPlatform() : "unknown";
 
         // Upsert: update platform if token already exists, otherwise create
-        Optional<PushToken> existing = pushTokenRepository.findByToken(req.getToken());
-        if (existing.isPresent()) {
-            PushToken pt = existing.get();
-            pt.setPlatform(platform);
-            pushTokenRepository.save(pt);
-        } else {
-            pushTokenRepository.save(PushToken.builder()
-                    .employee(emp)
-                    .token(req.getToken())
-                    .platform(platform)
-                    .build());
-        }
+        upsertToken(emp, req.getToken(), platform);
 
         auditService.log(AuditService.PUSH_TOKEN_REG, emp,
                 Map.of("platform", platform), httpReq);
 
         return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "registered")));
+    }
+
+    /** Registers a token while an OTP-verified employee waits for approval. */
+    @PostMapping("/push-token/pending")
+    @Operation(summary = "Register a push token for an employee awaiting approval")
+    public ResponseEntity<ApiResponse<Map<String, String>>> registerPendingToken(
+            @Valid @RequestBody RegisterPendingTokenRequest req,
+            HttpServletRequest httpReq) {
+
+        Employee emp = employeeRepository.findByNationalId(req.getNationalId())
+                .orElseThrow(() -> new IllegalArgumentException("Registration is not awaiting approval"));
+
+        if (emp.getStatus() != Employee.Status.PENDING_APPROVAL) {
+            throw new IllegalStateException("Registration is not awaiting approval");
+        }
+
+        String platform = req.getPlatform() != null ? req.getPlatform() : "unknown";
+        upsertToken(emp, req.getToken(), platform);
+        auditService.log(AuditService.PUSH_TOKEN_REG, emp,
+                Map.of("platform", platform, "pending", true), httpReq);
+
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "registered")));
+    }
+
+    private void upsertToken(Employee employee, String token, String platform) {
+        PushToken pushToken = pushTokenRepository.findByToken(token)
+                .orElseGet(() -> PushToken.builder().token(token).build());
+        // A device token can legitimately move to another account after logout.
+        pushToken.setEmployee(employee);
+        pushToken.setPlatform(platform);
+        pushTokenRepository.save(pushToken);
     }
 }

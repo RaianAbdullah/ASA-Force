@@ -6,26 +6,32 @@ logging:
     com.asa.workforce: DEBUG
     org.springframework.security: WARN
 
+app:
+  geofence:
+    latitude: 24.669812
+    longitude: 46.695437
+    radius-meters: 100
+
+jwt:
+  secret: ASA_WORKFORCE_TEST_SECRET_MUST_BE_AT_LEAST_SIXTY_FOUR_BYTES_LONG_123456789
+  access-expiry-minutes: 15
+  refresh-expiry-days: 3
+
 # Spring Boot test slice configuration
 spring:
   main:
     allow-bean-definition-overriding: true
-
-# =====================================================================
-# Stage 2+ test configuration — uncomment when adding database support
-# =====================================================================
-#
-# spring:
-#   test:
-#     database:
-#       replace: none   # Let Testcontainers manage the datasource
-#   flyway:
-#     enabled: true
-#   jpa:
-#     hibernate:
-#       ddl-auto: validate
-#     open-in-view: false
-#   data:
-#     redis:
-#       host: ${test.redis.host:localhost}
-#       port: ${test.redis.port:6379}
+  datasource:
+    url: jdbc:h2:mem:asa_workforce_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    # Production migrations use PostgreSQL-specific features. Unit/context tests
+    # use Hibernate's schema generation; migration validation belongs in an
+    # integration test backed by PostgreSQL.
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false

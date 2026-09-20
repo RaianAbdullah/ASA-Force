@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +32,17 @@ import java.util.UUID;
 public class MessageService {
 
     private static final int PAGE_SIZE = 50;
+    private static final Set<String> ALLOWED_ATTACHMENT_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/gif", "image/webp",
+            "application/pdf", "text/plain",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    private static final Set<String> ALLOWED_ATTACHMENT_EXTENSIONS = Set.of(
+            "jpg", "jpeg", "png", "gif", "webp", "pdf", "txt", "doc", "docx", "xls", "xlsx"
+    );
 
     private final MessageRepository  messageRepository;
     private final EmployeeRepository employeeRepository;
@@ -96,9 +108,19 @@ public class MessageService {
         String attachmentName  = null;
 
         if (file != null && !file.isEmpty()) {
+            String contentType = file.getContentType();
+            if (contentType == null || !ALLOWED_ATTACHMENT_TYPES.contains(contentType.toLowerCase())) {
+                throw new IllegalArgumentException("Unsupported attachment type");
+            }
             // Sanitise the original filename and prepend a UUID so names never collide
             String original    = file.getOriginalFilename();
             String safeName    = (original != null ? original.replaceAll("[^a-zA-Z0-9._-]", "_") : "attachment");
+            int extensionStart = safeName.lastIndexOf('.');
+            String extension = extensionStart >= 0 ? safeName.substring(extensionStart + 1).toLowerCase() : "";
+            if (!ALLOWED_ATTACHMENT_EXTENSIONS.contains(extension)) {
+                throw new IllegalArgumentException("Unsupported attachment extension");
+            }
+            if (safeName.length() > 120) safeName = safeName.substring(safeName.length() - 120);
             storedFilename     = UUID.randomUUID() + "_" + safeName;
             Path dest          = attachmentDir.resolve(storedFilename).normalize();
 
@@ -109,7 +131,6 @@ public class MessageService {
 
             Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
 
-            String contentType = file.getContentType();
             attachmentType     = (contentType != null && contentType.startsWith("image/")) ? "image" : "file";
             attachmentName     = original != null ? original : safeName;
         }

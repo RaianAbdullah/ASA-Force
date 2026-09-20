@@ -10,6 +10,18 @@ out-tsc
 
 # dependencies
 node_modules
+.pnpm-store/
+
+# Local dissertation working files and rendered QA output
+dissertation-review/
+supervisor-drafts/
+*.docx
+*.pdf
+/correct_user_testing_claims.py
+/create_combined_parts_1_2.py
+/filter_part_references.py
+/make_qa_contact_sheets.py
+/split_dissertation.py
 
 # IDEs and editors
 /.idea
@@ -20,12 +32,8 @@ node_modules
 .settings/
 *.sublime-workspace
 
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# IDE - VS Code (keep personal editor settings out of GitHub)
+.vscode/
 
 # misc
 /.sass-cache
@@ -42,6 +50,7 @@ testem.log
 Thumbs.db
 
 .github/instructions/nx.instructions.md
+**/.github/modernize/
 
 # Java / Maven
 backend/target/

@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +42,9 @@ public class AdminService {
     private final PushNotificationService pushService;
     private final AuditService            auditService;
     private final BCryptPasswordEncoder   passwordEncoder;
+    private final SecureRandom secureRandom = new SecureRandom();
+    private static final char[] TEMP_PASSWORD_CHARS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%".toCharArray();
 
     // ── List pending ─────────────────────────────────────────────────────────
 
@@ -213,8 +217,8 @@ public class AdminService {
             throw new IllegalArgumentException("Invalid role: " + req.getRole());
         }
 
-        // Temp password = national ID; employee must change on first login
-        String tempPassword = req.getNationalId();
+        // Generate an unpredictable one-time password; never derive credentials from identity data.
+        String tempPassword = generateTemporaryPassword();
 
         Employee emp = Employee.builder()
                 .nationalId(req.getNationalId())
@@ -413,5 +417,13 @@ public class AdminService {
     private String maskPhone(String p) {
         if (p == null || p.length() < 4) return "****";
         return "*".repeat(p.length() - 4) + p.substring(p.length() - 4);
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder value = new StringBuilder(16);
+        for (int i = 0; i < 16; i++) {
+            value.append(TEMP_PASSWORD_CHARS[secureRandom.nextInt(TEMP_PASSWORD_CHARS.length)]);
+        }
+        return value.toString();
     }
 }

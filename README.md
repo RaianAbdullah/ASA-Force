@@ -1,93 +1,96 @@
 # ASA-Force
 
-**Secure Workforce Mobile Application System**
+ASA-Force is a bilingual workforce management system for employee registration,
+department management, scheduling, attendance, leave requests and internal
+communication. It includes an Arabic/English web portal, an Expo mobile app and
+a Spring Boot API.
 
-A government-grade workforce management system for secure attendance tracking, scheduling, and vacation management.
+## Project structure
 
----
-
-## Architecture
-
+```text
+ASA-FORCE/
+├── apps/
+│   ├── web/             React and Vite web portal
+│   └── mobile/          React Native and Expo mobile app
+├── backend/             Spring Boot API and Flyway migrations
+├── documentation/       Architecture, security and deployment documents
+├── lib/                 Shared API clients, schemas and database types
+├── docker-compose.yml   Local PostgreSQL and Redis services
+└── render.yaml          Production deployment configuration
 ```
-asa-workforce/
-├── backend/          Spring Boot 3.4 API (Java 17)
-├── artifacts/
-│   └── asa-mobile/   React Native / Expo mobile app (TypeScript)
-├── documentation/    Architecture, security, threat model, API design
-├── docker-compose.yml  Local development environment
-└── README.md
-```
 
-## Components
+## Main features
 
-| Component     | Technology                    | Status      |
-|---------------|-------------------------------|-------------|
-| Mobile App    | React Native, Expo, TypeScript | Stage 1 ✅  |
-| Backend API   | Spring Boot 3.4, Java 17      | Stage 1 ✅  |
-| Database      | PostgreSQL 16                 | Stage 2 🔲  |
-| Cache/Session | Redis 7                       | Stage 3 🔲  |
-| Auth          | JWT + Refresh Tokens          | Stage 4 🔲  |
+- Registration with phone verification and administrator approval
+- Role-based access for employees, department managers and system administrators
+- Department assignment and employee management
+- Weekly schedules and shift-swap requests
+- Geofenced attendance with server-recorded times
+- Leave requests and approval workflows
+- Announcements, messages and restricted management notes
+- Arabic right-to-left and English left-to-right interfaces
+- Audit logging, rate limiting and token revocation
 
-## Key Features (Planned)
+## Technology
 
-- **Employee Management** — Registration, OTP verification, admin approval
-- **Weekly Schedules** — Published by admin, change notifications
-- **Attendance Check-In** — Server-side time, QR & geofence optional
-- **Vacation Requests** — Multi-level approval workflow
-- **Security** — JWT + rotating refresh tokens, audit logs, rate limiting
-- **i18n** — Arabic (RTL) and English support
+| Area | Technology |
+| --- | --- |
+| Web | React, TypeScript, Vite, Tailwind CSS |
+| Mobile | React Native, Expo, TypeScript |
+| API | Java 17, Spring Boot, Spring Security |
+| Database | PostgreSQL 16, Flyway |
+| Authentication | JWT access tokens and rotating refresh tokens |
+| Deployment | Render and Docker |
 
-## Quick Start
+## Local setup
 
-See [backend/README.md](./backend/README.md) for backend setup instructions.
+Requirements: Java 17, Maven, Node.js, pnpm and Docker.
 
 ```bash
-# Start local dependencies
-docker-compose up postgres redis -d
+# Install JavaScript dependencies
+pnpm install
 
-# Run backend
-cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=development
+# Start PostgreSQL and Redis
+docker compose up -d postgres redis
 
-# Run mobile app (in another terminal)
-cd artifacts/asa-mobile && npx expo start
+# Start the backend
+cd backend
+mvn spring-boot:run -Dspring-boot.run.profiles=development
 ```
 
-## Security
+In a second terminal:
 
-This system is designed security-first following:
-- OWASP ASVS Level 2
-- OWASP API Security Top 10
-- OWASP Mobile Application Security
-- NIST SP 800-63B authentication guidelines
+```bash
+# Start the web portal
+pnpm --filter @workspace/asa-web dev
 
-See [documentation/security-design.md](./documentation/security-design.md) for details.
+# Or start the mobile app
+pnpm --filter @workspace/asa-mobile dev
+```
+
+Do not commit production credentials. Database passwords, JWT secrets and other
+service credentials must be supplied through environment variables.
 
 ## Documentation
 
-| Document                    | Description                          |
-|-----------------------------|--------------------------------------|
-| [architecture.md](./documentation/architecture.md)       | System architecture overview |
-| [security-design.md](./documentation/security-design.md) | Security controls and design |
-| [threat-model.md](./documentation/threat-model.md)       | STRIDE threat analysis |
-| [api-design.md](./documentation/api-design.md)           | API design decisions |
-| [database-design.md](./documentation/database-design.md) | Schema and entity design |
-| [deployment-guide.md](./documentation/deployment-guide.md) | Production deployment |
-| [limitations.md](./documentation/limitations.md)         | Known limitations |
+- [Architecture](documentation/architecture.md)
+- [API design](documentation/api-design.md)
+- [Database design](documentation/database-design.md)
+- [Security design](documentation/security-design.md)
+- [Threat model](documentation/threat-model.md)
+- [Initial security assessment](documentation/security-assessment.md)
+- [Security test plan](documentation/security-test-plan.md)
+- [Deployment guide](documentation/deployment-guide.md)
+- [Controlled usability test plan](documentation/usability-test-plan.md)
+- [Participant information and agreement template](documentation/participant-information.md)
+- [Usability results template](documentation/usability-results-template.md)
+- [Incident response](documentation/incident-response.md)
+- [Known limitations](documentation/limitations.md)
 
-## Development Stages
+## Deployment
 
-| Stage | Name                    | Status      |
-|-------|------------------------|-------------|
-| 1     | Project Foundation      | ✅ Complete |
-| 2     | Database & Core Models  | 🔲 Next     |
-| 3     | Secure Registration     | 🔲 Planned  |
-| 4     | JWT Authentication      | 🔲 Planned  |
-| 5     | Authorization           | 🔲 Planned  |
-| 6     | Departments             | 🔲 Planned  |
-| 7     | Schedules               | 🔲 Planned  |
-| 8     | Attendance              | 🔲 Planned  |
-| 9     | Vacation Requests       | 🔲 Planned  |
-| 10    | Mobile Completion       | 🔲 Planned  |
-| 11    | Optional Controls       | 🔲 Planned  |
-| 12    | Security Hardening      | 🔲 Planned  |
-| 13    | Documentation & Evidence| 🔲 Planned  |
+The production services are defined in `render.yaml`:
+
+- Web portal: `https://asa-force.com`
+- API: `https://api.asa-force.com`
+- Database: managed PostgreSQL on Render

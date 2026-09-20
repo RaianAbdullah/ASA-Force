@@ -40,7 +40,7 @@ services:
     name: asa-force-web
     runtime: static
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/asa-web build
-    staticPublishPath: ./artifacts/asa-web/dist/public
+    staticPublishPath: ./apps/web/dist/public
     autoDeployTrigger: commit
     domains:
       - asa-force.com

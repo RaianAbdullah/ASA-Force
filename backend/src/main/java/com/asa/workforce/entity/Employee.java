@@ -63,8 +63,8 @@ public class Employee {
     @Builder.Default
     private Status status = Status.PENDING_VERIFICATION;
 
-    // OTP — stored in DB for Stage 3; moved to Redis in Stage 5
-    @Column(name = "otp_code", length = 6)
+    // Only a BCrypt hash is stored; the short-lived OTP is never persisted in plaintext.
+    @Column(name = "otp_code", length = 100)
     private String otpCode;
 
     @Column(name = "otp_expires_at")

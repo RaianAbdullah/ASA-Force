@@ -15,9 +15,9 @@ This is the backend API for the **ASA Workforce** secure mobile attendance syste
 | Language        | Java 17 (GraalVM compatible)        |
 | Framework       | Spring Boot 3.4.0                   |
 | Security        | Spring Security 6, JWT (jjwt 0.12)  |
-| Database        | PostgreSQL 16 + Drizzle ORM         |
+| Database        | PostgreSQL 16 + Spring Data JPA     |
 | Migrations      | Flyway                              |
-| Cache / Session | Redis 7                             |
+| Session         | Rotating refresh-token records      |
 | API Docs        | SpringDoc OpenAPI (dev only)        |
 | Testing         | JUnit 5, Mockito, Testcontainers    |
 | Build           | Maven 3.9                           |
@@ -49,20 +49,15 @@ Development:  http://localhost:8080/api
 Production:   https://api.asa-force.com/api
 ```
 
-## Development Stages
+## Implemented Modules
 
-| Stage | Feature          | Status      |
-|-------|-----------------|-------------|
-| 1     | Foundation       | ✅ Current  |
-| 2     | Database models  | 🔲 Planned  |
-| 3     | Registration/OTP | 🔲 Planned  |
-| 4     | JWT Auth         | 🔲 Planned  |
-| 5     | Authorization    | 🔲 Planned  |
-| 6     | Departments      | 🔲 Planned  |
-| 7     | Schedules        | 🔲 Planned  |
-| 8     | Attendance       | 🔲 Planned  |
-| 9     | Vacation         | 🔲 Planned  |
-| 10    | Mobile complete  | 🔲 Planned  |
+- Registration, OTP verification, login, password reset, JWT refresh and session revocation
+- Role-based employee administration, departments and restricted management notes
+- Weekly schedules, weekend duty and shift swaps
+- Geofenced attendance and administrative attendance summaries
+- Vacation balances and multi-stage approvals
+- Announcements, replies, messages, attachments and Expo push-token registration
+- Audit logging, rate limiting, token blacklisting and OpenAPI documentation
 
 ## Running Tests
 
@@ -70,6 +65,10 @@ Production:   https://api.asa-force.com/api
 mvn test
 mvn test -Dtest=HealthControllerTest
 ```
+
+The test profile uses an in-memory H2 database. PostgreSQL-specific Flyway
+migrations are exercised separately against PostgreSQL during deployment or
+integration testing.
 
 ## Package Structure
 

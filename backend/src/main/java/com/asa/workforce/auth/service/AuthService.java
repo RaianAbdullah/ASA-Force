@@ -99,7 +99,7 @@ public class AuthService {
                 .department(dept)
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .status(Status.PENDING_VERIFICATION)
-                .otpCode(otp)
+                .otpCode(passwordEncoder.encode(otp))
                 .otpExpiresAt(xAt)
                 .build();
 
@@ -147,7 +147,7 @@ public class AuthService {
         String otp   = generateOtp();
         OffsetDateTime expiresAt = OffsetDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES);
 
-        emp.setOtpCode(otp);
+        emp.setOtpCode(passwordEncoder.encode(otp));
         emp.setOtpExpiresAt(expiresAt);
         emp.setOtpAttempts((short) 0);
         employeeRepository.save(emp);
@@ -182,7 +182,7 @@ public class AuthService {
         if (emp.getOtpExpiresAt() == null || OffsetDateTime.now().isAfter(emp.getOtpExpiresAt())) {
             throw new IllegalStateException("OTP has expired. Please request a new one.");
         }
-        if (!req.getOtpCode().equals(emp.getOtpCode())) {
+        if (!passwordEncoder.matches(req.getOtpCode(), emp.getOtpCode())) {
             emp.setOtpAttempts((short) (emp.getOtpAttempts() + 1));
             employeeRepository.save(emp);
             auditService.log(AuditService.OTP_VERIFY_FAILURE, emp,

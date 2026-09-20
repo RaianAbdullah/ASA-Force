@@ -68,10 +68,10 @@ public class MessageController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(dto));
     }
 
-    // ── GET /v1/messages/attachments/{filename}  (public — UUID-keyed) ────────
+    // ── GET /v1/messages/attachments/{filename}  (authenticated) ─────────────
 
     @GetMapping("/attachments/{filename:.+}")
-    @Operation(summary = "Serve a message attachment (public — filenames are UUIDs)")
+    @Operation(summary = "Serve a message attachment to an authenticated user")
     public ResponseEntity<Resource> serveAttachment(@PathVariable String filename) throws IOException {
         Path file = service.resolveAttachment(filename);
         if (!Files.exists(file)) return ResponseEntity.notFound().build();
@@ -81,9 +81,12 @@ public class MessageController {
         catch (IOException ex) { contentType = null; }
         if (contentType == null) contentType = "application/octet-stream";
 
+        boolean image = contentType.startsWith("image/");
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
-                .header("Content-Disposition", "inline; filename=\"" + filename + "\"")
+                .header("Content-Disposition", (image ? "inline" : "attachment") + "; filename=\"" + filename + "\"")
+                .header("Cache-Control", "private, no-store, max-age=0")
+                .header("X-Content-Type-Options", "nosniff")
                 .body(new FileSystemResource(file));
     }
 

@@ -38,7 +38,7 @@ cp .env.example .env
 mvn spring-boot:run -Dspring-boot.run.profiles=development
 
 # Mobile (separate terminal)
-cd artifacts/asa-mobile
+cd apps/mobile
 pnpm install
 npx expo start
 ```

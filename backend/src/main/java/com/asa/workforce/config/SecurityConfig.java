@@ -107,7 +107,7 @@ public class SecurityConfig {
                     .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
 
                 // Cache control — prevent sensitive responses from being cached
-                .cacheControl(HeadersConfigurer.CacheControlConfig::disable)
+                .cacheControl(Customizer.withDefaults())
 
                 // Additional headers not covered by Spring Security DSL
                 .addHeaderWriter(new StaticHeadersWriter(
@@ -134,11 +134,11 @@ public class SecurityConfig {
                     "/v1/auth/refresh",
                     "/v1/auth/forgot-password",
                     "/v1/auth/reset-password",
-                    "/v1/auth/resend-otp"
+                    "/v1/auth/resend-otp",
+                    "/v1/notifications/push-token/pending"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET,
                     "/v1/auth/status/**",
-                    "/v1/messages/attachments/**",   // UUID-keyed files — no auth needed
                     "/healthz",
                     "/actuator/health",
                     "/actuator/info"
