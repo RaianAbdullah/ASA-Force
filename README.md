@@ -1,5 +1,7 @@
 # ASA-Force
 
+*Secure Workforce Mobile Application System*
+
 ASA-Force is a bilingual workforce management system for employee registration,
 department management, scheduling, attendance, leave requests and internal
 communication. It includes an Arabic/English web portal, an Expo mobile app and
