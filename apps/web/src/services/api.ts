@@ -1,4 +1,4 @@
-import { loadSession, updateTokens, clearSession, Session } from './auth';
+import { loadSession, updateTokens, clearSession, saveSession, Session } from './auth';
 
 export class ApiError extends Error {
   code: string;
@@ -18,6 +18,28 @@ export const setSessionExpiredCallback = (cb: () => void) => {
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+let refreshPending: Promise<Session> | null = null;
+export function restoreBrowserSession(): Promise<Session> {
+  if (!refreshPending) {
+    const rotate = async () => {
+      const res = await fetch(`${BASE_URL}/v1/auth/browser/refresh`, {
+        method: 'POST', credentials: 'include', headers: { 'X-ASA-Browser': '1' },
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error('Sign in required');
+      const d = json.data;
+      const session: Session = { token: d.accessToken, refreshToken: '', role: d.role,
+        roles: d.roles, mustChangePassword: d.mustChangePassword, nameAr: d.nameAr, employeeId: d.employeeId, departmentNameAr: d.departmentNameAr };
+      saveSession(session);
+      return session;
+    };
+    // Coordinate cookie rotation across tabs as well as concurrent requests.
+    refreshPending = Promise.resolve(navigator.locks ? navigator.locks.request('asa-session-refresh', rotate) : rotate())
+      .finally(() => { refreshPending = null; });
+  }
+  return refreshPending;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -33,6 +55,7 @@ async function request<T>(
 ): Promise<T> {
   const { requiresAuth = true, ...fetchOptions } = options;
   let headers = new Headers(fetchOptions.headers);
+  headers.set("X-ASA-Browser", "1");
   if (!headers.has('Content-Type') && !(fetchOptions.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
@@ -42,31 +65,16 @@ async function request<T>(
     headers.set('Authorization', `Bearer ${session.token}`);
   }
 
-  let res = await fetch(`${BASE_URL}${url}`, { ...fetchOptions, headers });
+  let res = await fetch(`${BASE_URL}${url}`, { ...fetchOptions, credentials: 'include', headers });
 
-  if (res.status === 401 && requiresAuth && session?.refreshToken) {
-    // Attempt refresh
+  if (res.status === 401 && requiresAuth && session) {
     try {
-      const refreshRes = await fetch(`${BASE_URL}/v1/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: session.refreshToken })
-      });
-      if (refreshRes.ok) {
-        const refreshData = await refreshRes.json();
-        if (refreshData.success && refreshData.data) {
-          updateTokens(refreshData.data.accessToken, refreshData.data.refreshToken);
-          headers.set('Authorization', `Bearer ${refreshData.data.accessToken}`);
-          res = await fetch(`${BASE_URL}${url}`, { ...fetchOptions, headers });
-        } else {
-          throw new Error('Refresh failed');
-        }
-      } else {
-        throw new Error('Refresh failed');
-      }
-    } catch (e) {
+      const renewed = await restoreBrowserSession();
+      headers.set('Authorization', `Bearer ${renewed.token}`);
+      res = await fetch(`${BASE_URL}${url}`, { ...fetchOptions, credentials: 'include', headers });
+    } catch {
       clearSession();
-      if (sessionExpiredCallback) sessionExpiredCallback();
+      sessionExpiredCallback?.();
       throw new ApiError('UNAUTHORIZED', 'Session expired', 401);
     }
   }
@@ -127,6 +135,8 @@ export interface AdminAttendanceSummary {
 }
 
 export interface EmployeeSummaryDto {
+  fullNameEn?: string;
+  departmentNameEn?: string;
   id: string;
   nationalId: string;
   firstNameAr: string;
@@ -260,8 +270,8 @@ export interface PageResponse<T> {
 export const authApi = {
   register: (body: any) => request<any>('/v1/auth/register', { method: 'POST', body: JSON.stringify(body), requiresAuth: false }),
   verifyOtp: (nationalId: string, otpCode: string) => request<any>('/v1/auth/verify-otp', { method: 'POST', body: JSON.stringify({ nationalId, otpCode }), requiresAuth: false }),
-  login: (nationalId: string, password: string) => request<any>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ nationalId, password }), requiresAuth: false }),
-  logout: (refreshToken?: string) => request<any>('/v1/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
+  login: (nationalId: string, password: string) => request<any>('/v1/auth/browser/login', { method: 'POST', body: JSON.stringify({ nationalId, password }), requiresAuth: false }),
+  logout: (refreshToken?: string) => request<any>('/v1/auth/browser/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
   forgotPassword: (nationalId: string) => request<any>('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ nationalId }), requiresAuth: false }),
   resetPassword: (resetToken: string, newPassword: string) => request<any>('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ resetToken, newPassword }), requiresAuth: false }),
   changePassword: (currentPassword: string, newPassword: string) => request<any>('/v1/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
@@ -361,3 +371,15 @@ export const announcementApi = {
   reply: (id: string, body: string) => request<ReplyDto>(`/v1/announcements/${id}/replies`, { method: 'POST', body: JSON.stringify({ body }) }),
   delete: (id: string) => request<any>(`/v1/announcements/${id}`, { method: 'DELETE' }),
 };
+
+export async function downloadMessageAttachment(path: string, filename: string) {
+  if (!path.startsWith('/v1/messages/attachments/')) throw new Error('Invalid attachment');
+  const fetchFile = () => fetch(`${BASE_URL}${path}`, { credentials: 'include',
+    headers: { Authorization: `Bearer ${loadSession()?.token || ''}` } });
+  let res = await fetchFile();
+  if (res.status === 401) { await restoreBrowserSession(); res = await fetchFile(); }
+  if (!res.ok) throw new Error('Attachment unavailable');
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a'); link.href = url; link.download = filename;
+  link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

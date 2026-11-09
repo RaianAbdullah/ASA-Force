@@ -34,11 +34,12 @@ public class AdminAttendanceController {
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','MAIN_MANAGER','DEPARTMENT_MANAGER','WEEKEND_MANAGER')")
     @Operation(summary = "Attendance summary for a given date — all employees or per department")
     public ResponseEntity<ApiResponse<AdminAttendanceSummary>> todaySummary(
+            org.springframework.security.core.Authentication authentication,
             @RequestParam(required = false) UUID departmentId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
-        LocalDate target = date != null ? date : LocalDate.now(ZoneOffset.UTC);
-        AdminAttendanceSummary data = attendanceService.getDaySummary(target, departmentId);
+        LocalDate target = date != null ? date : LocalDate.now(java.time.ZoneId.of("Asia/Riyadh"));
+        AdminAttendanceSummary data = attendanceService.getDaySummary(authentication.getName(), target, departmentId);
         return ResponseEntity.ok(ApiResponse.ok(data));
     }
 }

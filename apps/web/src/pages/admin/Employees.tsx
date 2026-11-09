@@ -1,3 +1,4 @@
+import { useLanguage } from '@/contexts/LanguageContext';
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, departmentApi, type EmployeeSummaryDto, type EmployeeNoteDto } from '@/services/api';
@@ -20,6 +21,7 @@ import * as z from 'zod';
 import { Search, Plus, UserCog, Loader2, Copy, Check, StickyNote, MessageSquarePlus } from 'lucide-react';
 
 const employeeSchema = z.object({
+  fullNameEn: z.string().max(300).optional(),
   nationalId: z.string().min(10, 'رقم الهوية يجب أن يكون 10 أرقام على الأقل'),
   firstNameAr: z.string().min(2, 'الاسم الأول مطلوب'),
   middleNameAr: z.string().optional(),
@@ -30,6 +32,11 @@ const employeeSchema = z.object({
 });
 
 export const Employees: React.FC = () => {
+  const { locale } = useLanguage();
+  const [editingEmployee, setEditingEmployee] = useState<EmployeeSummaryDto | null>(null);
+  const [englishName, setEnglishName] = useState('');
+  const employeeName = (emp: EmployeeSummaryDto) => locale === 'en' && emp.fullNameEn?.trim() ? emp.fullNameEn : [emp.firstNameAr, emp.middleNameAr, emp.lastNameAr].filter(Boolean).join(' ');
+  const departmentName = (emp: EmployeeSummaryDto) => (locale === 'en' ? emp.departmentNameEn || emp.departmentNameAr : emp.departmentNameAr || emp.departmentNameEn) || '—';
   const [searchTerm, setSearchTerm] = useState('');
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -96,9 +103,19 @@ export const Employees: React.FC = () => {
     },
   });
 
+  const saveName = useMutation({
+    mutationFn: () => adminApi.updateEmployee(editingEmployee!.id, { fullNameEn: englishName.trim() }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.employeesAll });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.employeesActive });
+      setEditingEmployee(null);
+    },
+    onError: (error: Error) => toast({ title: locale === 'en' ? 'Could not save' : 'تعذر الحفظ', description: error.message, variant: 'destructive' }),
+  });
+
   const filteredEmployees = employees?.filter(emp => {
     const matchesSearch = 
-      (emp.firstNameAr + ' ' + emp.lastNameAr).includes(searchTerm) || 
+      [emp.firstNameAr, emp.middleNameAr, emp.lastNameAr, emp.fullNameEn].filter(Boolean).join(' ').toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()) ||
       emp.nationalId.includes(searchTerm);
     const matchesDept = deptFilter === 'all' || emp.departmentId === deptFilter;
     return matchesSearch && matchesDept;
@@ -151,7 +168,7 @@ export const Employees: React.FC = () => {
               <SelectContent dir="rtl">
                 <SelectItem value="all">جميع الأقسام</SelectItem>
                 {departments?.map(d => (
-                  <SelectItem key={d.id} value={d.id}>{d.nameAr}</SelectItem>
+                  <SelectItem key={d.id} value={d.id}><span translate="no">{locale === 'en' ? d.nameEn || d.nameAr : d.nameAr || d.nameEn}</span></SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -177,10 +194,10 @@ export const Employees: React.FC = () => {
                 {filteredEmployees?.map((emp) => (
                   <tr key={emp.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 font-medium text-foreground">
-                      {emp.firstNameAr} {emp.lastNameAr}
+                      <span translate="no">{employeeName(emp)}</span>
                     </td>
                     <td className="px-6 py-4 text-center font-mono text-muted-foreground" dir="ltr">{emp.nationalId}</td>
-                    <td className="px-6 py-4 text-center">{emp.departmentNameAr || '-'}</td>
+                    <td className="px-6 py-4 text-center"><span translate="no">{departmentName(emp)}</span></td>
                     <td className="px-6 py-4 text-center">
                       <Badge variant="outline" className="font-normal text-xs bg-black/20">
                         {roleMap[emp.role] || emp.role}
@@ -207,7 +224,10 @@ export const Employees: React.FC = () => {
                             <StickyNote className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          disabled={!session?.roles?.some(role => ['SYSTEM_ADMIN', 'MAIN_MANAGER'].includes(role))}
+                          aria-label={locale === 'en' ? 'Edit English name' : 'تعديل الاسم بالإنجليزية'}
+                          onClick={() => { setEditingEmployee(emp); setEnglishName(emp.fullNameEn || ''); }}>
                           <UserCog className="h-4 w-4" />
                         </Button>
                       </div>
@@ -227,6 +247,19 @@ export const Employees: React.FC = () => {
         )}
       </Card>
 
+      <Dialog open={!!editingEmployee} onOpenChange={(open) => { if (!open) setEditingEmployee(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{locale === 'en' ? 'English employee name' : 'اسم الموظف بالإنجليزية'}</DialogTitle>
+            <DialogDescription translate="no">{editingEmployee ? [editingEmployee.firstNameAr, editingEmployee.middleNameAr, editingEmployee.lastNameAr].filter(Boolean).join(' ') : ''}</DialogDescription>
+          </DialogHeader>
+          <label htmlFor="english-name">{locale === 'en' ? 'Full name in English (optional)' : 'الاسم الكامل بالإنجليزية (اختياري)'}</label>
+          <Input id="english-name" dir="ltr" maxLength={300} value={englishName} onChange={e => setEnglishName(e.target.value)} />
+          <p className="text-sm text-muted-foreground">{locale === 'en' ? 'The Arabic name is shown when no English name is saved.' : 'يظهر الاسم العربي إذا لم يُحفظ اسم بالإنجليزية.'}</p>
+          <Button disabled={saveName.isPending} onClick={() => saveName.mutate()}>{locale === 'en' ? 'Save' : 'حفظ'}</Button>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!noteEmployee} onOpenChange={(open) => {
         if (!open) {
           setNoteEmployee(null);
@@ -239,7 +272,7 @@ export const Employees: React.FC = () => {
             <DialogTitle className="text-right">ملاحظات الموظف</DialogTitle>
             <DialogDescription className="text-right">
               {noteEmployee
-                ? `${noteEmployee.firstNameAr} ${noteEmployee.lastNameAr} — ${noteEmployee.departmentNameAr || 'القسم غير محدد'}`
+                ? `${employeeName(noteEmployee)} — ${departmentName(noteEmployee)}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
@@ -365,6 +398,9 @@ export const Employees: React.FC = () => {
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="fullNameEn" render={({ field }) => (
+                  <FormItem><FormLabel>{locale === 'en' ? 'Full name in English (optional)' : 'الاسم الكامل بالإنجليزية (اختياري)'}</FormLabel><FormControl><Input dir="ltr" maxLength={300} {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                )} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField control={form.control} name="nationalId" render={({ field }) => (
                     <FormItem><FormLabel>رقم الهوية</FormLabel><FormControl><Input className="bg-black/20 text-left" dir="ltr" placeholder="1234567890" {...field} /></FormControl><FormMessage /></FormItem>
@@ -394,7 +430,7 @@ export const Employees: React.FC = () => {
                         <FormControl><SelectTrigger dir="rtl" className="bg-black/20"><SelectValue placeholder="بدون قسم" /></SelectTrigger></FormControl>
                         <SelectContent dir="rtl">
                           <SelectItem value="none">بدون قسم</SelectItem>
-                          {departments?.map(d => <SelectItem key={d.id} value={d.id}>{d.nameAr}</SelectItem>)}
+                          {departments?.map(d => <SelectItem key={d.id} value={d.id}><span translate="no">{locale === 'en' ? d.nameEn || d.nameAr : d.nameAr || d.nameEn}</span></SelectItem>)}
                         </SelectContent>
                       </Select>
                     </FormItem>

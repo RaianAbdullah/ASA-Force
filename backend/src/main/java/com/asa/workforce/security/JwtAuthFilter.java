@@ -111,6 +111,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
 
+            Number version = claims.get("credentialVersion", Number.class);
+            long expectedVersion = emp.getPasswordChangedAt() == null ? 0L : emp.getPasswordChangedAt().toInstant().toEpochMilli();
+            if (version == null || version.longValue() != expectedVersion) {
+                rejectRevoked(response); return;
+            }
+            String route = request.getRequestURI().substring(request.getContextPath().length());
+            if (emp.isMustChangePassword() && !route.equals("/v1/auth/change-password")
+                    && !route.equals("/v1/auth/logout") && !route.equals("/v1/auth/browser/logout")) {
+                response.setStatus(403); response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"PASSWORD_CHANGE_REQUIRED\",\"message\":\"Change your initial password first\"}}");
+                return;
+            }
             // ── All checks passed — set security context ──────────────────────
             // Build authorities from the live DB roles set (multi-role support).
             // Fall back to the primary 'role' column if the set is empty.

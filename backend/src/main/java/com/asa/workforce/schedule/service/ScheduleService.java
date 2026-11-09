@@ -23,6 +23,7 @@ public class ScheduleService {
 
     private final WeeklyScheduleRepository scheduleRepository;
     private final EmployeeRepository       employeeRepository;
+    private final com.asa.workforce.repository.DepartmentRepository departments;
 
     /** Used by ShiftSwapService to locate a specific week's schedule. */
     @Transactional(readOnly = true)
@@ -45,7 +46,7 @@ public class ScheduleService {
         Employee emp = employeeRepository.findByNationalId(nationalId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
-        LocalDate today    = LocalDate.now();
+        LocalDate today    = LocalDate.now(java.time.ZoneId.of("Asia/Riyadh"));
         LocalDate weekAgo  = today.minusDays(7);
 
         return scheduleRepository
@@ -58,7 +59,7 @@ public class ScheduleService {
         Employee emp = employeeRepository.findByNationalId(nationalId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Riyadh"));
         // Show schedules from 2 weeks ago up to current
         return scheduleRepository.findAll().stream()
                 .filter(s -> s.getEmployee().getId().equals(emp.getId()))
@@ -71,7 +72,7 @@ public class ScheduleService {
 
     // ── Admin: create/update schedules ────────────────────────────────────────
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'MAIN_MANAGER', 'DEPARTMENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'MAIN_MANAGER', 'DEPARTMENT_MANAGER', 'WEEKEND_MANAGER')")
     @Transactional
     public ScheduleDto createSchedule(CreateScheduleRequest req, String creatorNationalId) {
         Employee emp = employeeRepository.findById(req.getEmployeeId())
@@ -79,6 +80,9 @@ public class ScheduleService {
         Employee creator = employeeRepository.findByNationalId(creatorNationalId)
                 .orElseThrow(() -> new IllegalArgumentException("Creator not found"));
 
+        requireScope(creator, emp, req.isWeekendDuty());
+        if (!req.getShiftEnd().isAfter(req.getShiftStart())) throw new IllegalArgumentException("Only same-day shifts are supported; end must follow start");
+        if (req.getWeekStart().getDayOfWeek()!=DayOfWeek.SUNDAY) throw new IllegalArgumentException("Schedule week must start on Sunday");
         // weekStart must be a Sunday (Saudi work-week starts Sunday) or Monday
         WeeklySchedule schedule = WeeklySchedule.builder()
                 .employee(emp)
@@ -91,15 +95,28 @@ public class ScheduleService {
                 .createdBy(creator)
                 .build();
 
-        return toDto(scheduleRepository.save(schedule), LocalDate.now());
+        schedule.parsedWorkDays(); // reject invalid day abbreviations
+        scheduleRepository.findByEmployeeIdAndWeekStart(emp.getId(), req.getWeekStart()).ifPresent(existing -> schedule.setId(existing.getId()));
+        return toDto(scheduleRepository.save(schedule), LocalDate.now(java.time.ZoneId.of("Asia/Riyadh")));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'MAIN_MANAGER', 'DEPARTMENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'MAIN_MANAGER', 'DEPARTMENT_MANAGER', 'WEEKEND_MANAGER')")
     @Transactional
-    public void deleteSchedule(UUID scheduleId) {
-        scheduleRepository.deleteById(scheduleId);
+    public void deleteSchedule(UUID scheduleId, String nationalId) {
+        Employee actor=employeeRepository.findByNationalId(nationalId).orElseThrow();
+        WeeklySchedule schedule=scheduleRepository.findById(scheduleId).orElseThrow();
+        requireScope(actor, schedule.getEmployee(), Boolean.TRUE.equals(schedule.getIsWeekendDuty()));
+        scheduleRepository.delete(schedule);
     }
 
+    private void requireScope(Employee actor, Employee target, boolean weekend) {
+        var roles=new java.util.HashSet<>(actor.getRoles());roles.add(actor.getRole());
+        if(roles.contains(Employee.Role.SYSTEM_ADMIN)||roles.contains(Employee.Role.MAIN_MANAGER)) return;
+        if(roles.contains(Employee.Role.WEEKEND_MANAGER)&&weekend) return;
+        if(roles.contains(Employee.Role.DEPARTMENT_MANAGER) && target.getDepartment()!=null
+                && departments.findByManagerId(actor.getId()).map(d->d.getId().equals(target.getDepartment().getId())).orElse(false)) return;
+        throw new SecurityException("Schedule department access denied");
+    }
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private ScheduleDto toDto(WeeklySchedule s, LocalDate refDate) {

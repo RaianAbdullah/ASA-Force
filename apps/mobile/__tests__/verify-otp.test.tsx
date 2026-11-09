@@ -36,7 +36,7 @@ jest.mock('@expo/vector-icons', () => ({
 }));
 
 const mockVerifyOtp = jest.fn();
-const mockGetStatus = jest.fn();
+const mockResendOtp = jest.fn();
 jest.mock('@/services/api', () => {
   class ApiError extends Error {
     code: string;
@@ -51,7 +51,7 @@ jest.mock('@/services/api', () => {
   return {
     authApi: {
       verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
-      getStatus: (...args: unknown[]) => mockGetStatus(...args),
+      resendOtp: (...args: unknown[]) => mockResendOtp(...args),
     },
     ApiError,
   };
@@ -158,13 +158,13 @@ describe('VerifyOtpScreen', () => {
 
   // ── Resend: double-tap guard ───────────────────────────────────────────────
 
-  it('fires only one getStatus call when Resend is tapped twice before the first response arrives', async () => {
+  it('fires only one resendOtp call when Resend is tapped twice before the first response arrives', async () => {
     setupParams({ nationalId: '1234567890' });
     jest.useFakeTimers();
 
     // Resolves on demand so we control when the in-flight request completes
     let resolveFirst!: () => void;
-    mockGetStatus.mockImplementationOnce(
+    mockResendOtp.mockImplementationOnce(
       () => new Promise<void>((res) => { resolveFirst = res; })
     );
 
@@ -186,7 +186,7 @@ describe('VerifyOtpScreen', () => {
     // Let the resolved promise settle
     await act(async () => { await Promise.resolve(); });
 
-    expect(mockGetStatus).toHaveBeenCalledTimes(1);
+    expect(mockResendOtp).toHaveBeenCalledTimes(1);
 
     // Advance fake timers past the full 60 s cooldown so the interval self-clears
     await act(async () => { jest.advanceTimersByTime(61000); });
@@ -198,7 +198,7 @@ describe('VerifyOtpScreen', () => {
   it('shows the countdown text and disables the button after a successful resend', async () => {
     setupParams({ nationalId: '1234567890' });
     jest.useFakeTimers();
-    mockGetStatus.mockResolvedValueOnce({});
+    mockResendOtp.mockResolvedValueOnce({});
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     const { getByTestId, getByText } = await render(<VerifyOtpScreen />);
@@ -223,7 +223,7 @@ describe('VerifyOtpScreen', () => {
 
   it('shows an alert and re-enables the Resend button when the resend API call fails', async () => {
     setupParams({ nationalId: '1234567890' });
-    mockGetStatus.mockRejectedValueOnce(new Error('Network error'));
+    mockResendOtp.mockRejectedValueOnce(new Error('Network error'));
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     const { getByTestId, getByText } = await render(<VerifyOtpScreen />);

@@ -1,5 +1,5 @@
 # Test profile (SPRING_PROFILES_ACTIVE=test)
-# Used by automated tests. Testcontainers provides a real PostgreSQL instance.
+# Defaults to disposable H2. CI overrides datasource properties for real PostgreSQL migration/security tests.
 
 logging:
   level:
@@ -8,8 +8,8 @@ logging:
 
 app:
   geofence:
-    latitude: 24.669812
-    longitude: 46.695437
+    latitude: 0.0
+    longitude: 0.0
     radius-meters: 100
 
 jwt:

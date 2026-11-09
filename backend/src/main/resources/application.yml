@@ -36,7 +36,7 @@ server:
 app:
   cors:
     # Override in each profile. Production must set a specific list.
-    allowed-origins: ${ALLOWED_CORS_ORIGINS:*}
+    allowed-origins: ${ALLOWED_CORS_ORIGINS:http://localhost:5173}
   attachments:
     # Directory where message attachments are stored on disk.
     dir: ${ATTACHMENTS_DIR:/tmp/asa-attachments}

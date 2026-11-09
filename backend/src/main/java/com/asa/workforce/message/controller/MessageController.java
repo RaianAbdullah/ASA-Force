@@ -38,10 +38,11 @@ public class MessageController {
     @GetMapping
     @Operation(summary = "Get recent messages (up to 50), or messages after ?after=<ISO timestamp>")
     public ResponseEntity<ApiResponse<List<MessageDto>>> list(
+            @AuthenticationPrincipal UserDetails user,
             @RequestParam(required = false) OffsetDateTime after) {
         List<MessageDto> msgs = after != null
-                ? service.listAfter(after)
-                : service.listRecent();
+                ? service.listAfter(user.getUsername(), after)
+                : service.listRecent(user.getUsername());
         return ResponseEntity.ok(ApiResponse.ok(msgs));
     }
 
@@ -72,22 +73,12 @@ public class MessageController {
 
     @GetMapping("/attachments/{filename:.+}")
     @Operation(summary = "Serve a message attachment to an authenticated user")
-    public ResponseEntity<Resource> serveAttachment(@PathVariable String filename) throws IOException {
-        Path file = service.resolveAttachment(filename);
-        if (!Files.exists(file)) return ResponseEntity.notFound().build();
-
-        String contentType;
-        try { contentType = Files.probeContentType(file); }
-        catch (IOException ex) { contentType = null; }
-        if (contentType == null) contentType = "application/octet-stream";
-
-        boolean image = contentType.startsWith("image/");
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .header("Content-Disposition", (image ? "inline" : "attachment") + "; filename=\"" + filename + "\"")
-                .header("Cache-Control", "private, no-store, max-age=0")
+    public ResponseEntity<Resource> serveAttachment(@AuthenticationPrincipal UserDetails user, @PathVariable String filename) throws IOException {
+        Resource resource = service.resolveAttachment(user.getUsername(), filename);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header("Content-Disposition", org.springframework.http.ContentDisposition.attachment().filename(filename).build().toString())
                 .header("X-Content-Type-Options", "nosniff")
-                .body(new FileSystemResource(file));
+                .body(resource);
     }
 
     // ── DELETE /v1/messages/{id} ──────────────────────────────────────────────

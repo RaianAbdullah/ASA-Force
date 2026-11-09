@@ -99,10 +99,10 @@ export default function HomeScreen() {
       qc.invalidateQueries({ queryKey: ['attendance', 'today'] });
     },
     onError: (err) => {
-      const msg = err instanceof ApiError ? err.message
+      const msg = err instanceof Error ? err.message
                 : typeof err === 'string' ? err
                 : t('checkInFailed');
-      Alert.alert(t('error'), msg);
+      Alert.alert(t('checkInError'), msg);
     },
   });
 
@@ -117,6 +117,23 @@ export default function HomeScreen() {
       ]
     );
   }, [checkInMutation]);
+
+  const checkOutMutation = useMutation({
+    mutationFn: async () => {
+      setLocating(true);
+      const coords = await getCurrentLocation().finally(() => setLocating(false));
+      return attendanceApi.checkOut(coords.latitude, coords.longitude);
+    },
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['attendance', 'today'] });
+    },
+    onError: (err) => Alert.alert(t('checkOutError'), err instanceof Error ? err.message : t('checkOutFailed')),
+  });
+  const handleCheckOut = () => Alert.alert(t('checkOut'), t('gpsWillBeRecorded'), [
+    { text: t('cancel'), style: 'cancel' },
+    { text: t('checkOut'), onPress: () => checkOutMutation.mutate() },
+  ]);
 
   const handleSignOut = useCallback(async () => {
     const current = await loadSession();
@@ -133,7 +150,7 @@ export default function HomeScreen() {
     );
   }
 
-  const isBusy = locating || checkInMutation.isPending;
+  const isBusy = locating || checkInMutation.isPending || checkOutMutation.isPending;
 
   const now = new Date();
   const hijriDate  = now.toLocaleDateString('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -300,6 +317,15 @@ export default function HomeScreen() {
               </View>
             </View>
           </View>
+        )}
+
+        {today?.canCheckOut && (
+          <TouchableOpacity testID="btn-check-out" onPress={handleCheckOut} disabled={isBusy} style={styles.bannerWrap}>
+            <View style={[styles.banner, { backgroundColor: NEON }]}>
+              {isBusy ? <ActivityIndicator /> : <Ionicons name="log-out-outline" size={24} color="#0A0F0D" />}
+              <Text style={styles.bannerTitle}>{t('checkOut')}</Text>
+            </View>
+          </TouchableOpacity>
         )}
 
         {/* Already checked in */}

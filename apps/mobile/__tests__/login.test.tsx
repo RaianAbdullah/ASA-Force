@@ -172,12 +172,12 @@ describe('LoginScreen — session saving and routing', () => {
     await waitFor(() => {
       expect(mockRouterReplace).toHaveBeenCalledWith('/(tabs)');
     });
-    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(admin)');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(auth)/login');
   });
 
   // ── 3. Routing: SYSTEM_ADMIN → /(admin) ────────────────────────────────────
 
-  it('navigates to /(admin) when the authenticated role is SYSTEM_ADMIN', async () => {
+  it('navigates to the shared home tabs when the authenticated role is SYSTEM_ADMIN', async () => {
     mockLogin.mockResolvedValueOnce(makeLoginResponse('SYSTEM_ADMIN'));
 
     const { getByTestId } = await render(<LoginScreen />);
@@ -192,14 +192,14 @@ describe('LoginScreen — session saving and routing', () => {
     });
 
     await waitFor(() => {
-      expect(mockRouterReplace).toHaveBeenCalledWith('/(admin)');
+      expect(mockRouterReplace).toHaveBeenCalledWith('/(tabs)');
     });
-    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(tabs)');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(auth)/login');
   });
 
   // ── 4. Routing: MAIN_MANAGER → /(admin) ────────────────────────────────────
 
-  it('navigates to /(admin) when the authenticated role is MAIN_MANAGER', async () => {
+  it('navigates to the shared home tabs when the authenticated role is MAIN_MANAGER', async () => {
     mockLogin.mockResolvedValueOnce(makeLoginResponse('MAIN_MANAGER'));
 
     const { getByTestId } = await render(<LoginScreen />);
@@ -214,14 +214,14 @@ describe('LoginScreen — session saving and routing', () => {
     });
 
     await waitFor(() => {
-      expect(mockRouterReplace).toHaveBeenCalledWith('/(admin)');
+      expect(mockRouterReplace).toHaveBeenCalledWith('/(tabs)');
     });
-    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(tabs)');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(auth)/login');
   });
 
   // ── 5. Routing: DEPARTMENT_MANAGER → /(admin) ──────────────────────────────
 
-  it('navigates to /(admin) when the authenticated role is DEPARTMENT_MANAGER', async () => {
+  it('navigates to the shared home tabs when the authenticated role is DEPARTMENT_MANAGER', async () => {
     mockLogin.mockResolvedValueOnce(makeLoginResponse('DEPARTMENT_MANAGER'));
 
     const { getByTestId } = await render(<LoginScreen />);
@@ -236,9 +236,9 @@ describe('LoginScreen — session saving and routing', () => {
     });
 
     await waitFor(() => {
-      expect(mockRouterReplace).toHaveBeenCalledWith('/(admin)');
+      expect(mockRouterReplace).toHaveBeenCalledWith('/(tabs)');
     });
-    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(tabs)');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(auth)/login');
   });
 
   // ── 6. ApiError → Alert shown, loading cleared, no navigation ──────────────
@@ -365,8 +365,8 @@ describe('LoginScreen — session saving and routing', () => {
     });
 
     // Must NOT proceed to the normal home screen
-    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(tabs)');
-    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(admin)');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(auth)/login');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(auth)/login');
   });
 
   // ── 11. mustChangePassword for admin role → still routes to change-password ─
@@ -394,7 +394,7 @@ describe('LoginScreen — session saving and routing', () => {
       );
     });
 
-    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(admin)');
-    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(tabs)');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(auth)/login');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/(auth)/login');
   });
 });

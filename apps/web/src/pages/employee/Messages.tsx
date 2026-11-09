@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { messageApi } from '@/services/api';
+import { messageApi, downloadMessageAttachment } from '@/services/api';
 import { queryKeys } from '@/services/queryKeys';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -77,7 +77,7 @@ export const Messages: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     // Check file size (e.g. max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({ title: 'حجم الملف كبير', description: 'الحد الأقصى لحجم الملف هو 5 ميجابايت', variant: 'destructive' });
@@ -95,9 +95,9 @@ export const Messages: React.FC = () => {
 
   return (
     <div className="h-[calc(100dvh-120px)] flex flex-col space-y-4">
-      <PageHeader 
-        title="مجموعة التواصل" 
-        description="تواصل مع جميع موظفي الوكالة في مكان واحد"
+      <PageHeader
+        title="رسائل القسم / Department messages"
+        description="رسائل القسم — يمكن للإدارة العليا مراجعتها / Department messages, visible to senior management"
         className="mb-0 shrink-0"
       />
 
@@ -110,7 +110,7 @@ export const Messages: React.FC = () => {
             messages.map((msg, idx) => {
               const isMe = msg.senderId === session?.employeeId;
               const showHeader = idx === 0 || messages[idx - 1].senderId !== msg.senderId;
-              
+
               return (
                 <div key={msg.id} className={cn("flex flex-col max-w-[80%]", isMe ? "ml-auto items-end" : "mr-auto items-start")}>
                   {showHeader && (
@@ -119,43 +119,26 @@ export const Messages: React.FC = () => {
                       <span className="text-[10px] text-muted-foreground bg-white/5 px-1.5 py-0.5 rounded">{msg.senderRole}</span>
                     </div>
                   )}
-                  
+
                   <div className={cn(
                     "relative p-3 rounded-2xl",
-                    isMe 
-                      ? "bg-primary text-primary-foreground rounded-tr-sm" 
+                    isMe
+                      ? "bg-primary text-primary-foreground rounded-tr-sm"
                       : "bg-muted/50 border border-border rounded-tl-sm"
                   )}>
                     {msg.body && <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>}
-                    
+
                     {msg.attachmentUrl && (
                       <div className={cn("mt-2 rounded-lg overflow-hidden border", isMe ? "border-primary-foreground/20" : "border-border/50")}>
-                        {msg.attachmentType?.startsWith('image/') ? (
-                          <a href={msg.attachmentUrl} target="_blank" rel="noreferrer" className="block relative group">
-                            {/* In a real app we'd load the actual image URL here, using a placeholder for the mockup */}
-                            <div className="w-48 h-32 bg-black/20 flex items-center justify-center">
-                              <ImageIcon className={cn("h-8 w-8", isMe ? "text-primary-foreground/50" : "text-muted-foreground")} />
-                            </div>
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <span className="text-xs text-white">فتح الصورة</span>
-                            </div>
-                          </a>
-                        ) : (
-                          <a href={msg.attachmentUrl} target="_blank" rel="noreferrer" className={cn(
-                            "flex items-center gap-3 p-3 transition-colors",
-                            isMe ? "bg-primary-foreground/10 hover:bg-primary-foreground/20" : "bg-background/50 hover:bg-background"
-                          )}>
-                            <div className={cn("p-2 rounded", isMe ? "bg-primary-foreground/20" : "bg-muted")}>
-                              <FileText className="h-4 w-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium truncate max-w-[150px]">{msg.attachmentName || 'ملف مرفق'}</p>
-                            </div>
-                          </a>
-                        )}
+                        <button type="button" className="flex items-center gap-3 p-3 text-start"
+                          onClick={() => downloadMessageAttachment(msg.attachmentUrl!, msg.attachmentName || 'attachment')
+                            .catch(() => toast({ title: 'Attachment unavailable / المرفق غير متاح', variant: 'destructive' }))}>
+                          <FileText className="h-4 w-4" />
+                          <span className="text-xs truncate max-w-[200px]">{msg.attachmentName || 'Download / تحميل'}</span>
+                        </button>
                       </div>
                     )}
-                    
+
                     <span className={cn(
                       "text-[10px] block mt-1.5 text-left",
                       isMe ? "text-primary-foreground/70" : "text-muted-foreground"
@@ -179,17 +162,17 @@ export const Messages: React.FC = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2">
               <div className="relative">
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   ref={fileInputRef}
-                  className="hidden" 
+                  className="hidden"
                   onChange={handleFileChange}
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.docx,.xlsx"
                 />
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   className="h-10 w-10 text-muted-foreground hover:text-foreground shrink-0 rounded-full"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadMutation.isPending || sendMutation.isPending}
@@ -197,27 +180,27 @@ export const Messages: React.FC = () => {
                   {uploadMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
                 </Button>
               </div>
-              
+
               <FormField
                 control={form.control}
                 name="body"
                 render={({ field }) => (
                   <FormItem className="flex-1 mb-0">
                     <FormControl>
-                      <Input 
-                        placeholder="اكتب رسالة..." 
-                        className="bg-black/20 border-border h-10 rounded-full px-4" 
+                      <Input
+                        placeholder="اكتب رسالة..."
+                        className="bg-black/20 border-border h-10 rounded-full px-4"
                         autoComplete="off"
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                   </FormItem>
                 )}
               />
-              
-              <Button 
-                type="submit" 
-                size="icon" 
+
+              <Button
+                type="submit"
+                size="icon"
                 className="h-10 w-10 rounded-full shrink-0 shadow-[0_0_10px_rgba(0,230,118,0.2)]"
                 disabled={(!form.watch('body')?.trim() && !uploadMutation.isPending) || sendMutation.isPending}
               >

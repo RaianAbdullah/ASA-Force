@@ -217,11 +217,15 @@ public class AdminService {
             throw new IllegalArgumentException("Invalid role: " + req.getRole());
         }
 
+        Employee actor=employeeRepository.findByNationalId(adminNationalId).orElseThrow();
+        if (role == Employee.Role.SYSTEM_ADMIN && actor.getRole()!=Employee.Role.SYSTEM_ADMIN
+                && !actor.getRoles().contains(Employee.Role.SYSTEM_ADMIN)) throw new SecurityException("Only system administrators can create system administrators");
         // Generate an unpredictable one-time password; never derive credentials from identity data.
         String tempPassword = generateTemporaryPassword();
 
         Employee emp = Employee.builder()
                 .nationalId(req.getNationalId())
+                .fullNameEn(req.getFullNameEn())
                 .firstNameAr(req.getFirstNameAr())
                 .middleNameAr(req.getMiddleNameAr())
                 .lastNameAr(req.getLastNameAr())
@@ -229,6 +233,7 @@ public class AdminService {
                 .department(dept)
                 .passwordHash(passwordEncoder.encode(tempPassword))
                 .role(role)
+                .roles(java.util.Set.of(role))
                 .status(Status.ACTIVE)
                 .mustChangePassword(true)
                 .build();
@@ -257,13 +262,29 @@ public class AdminService {
                 .build();
     }
 
+    private List<Employee> scopedEmployees(String nationalId, boolean activeOnly) {
+        Employee actor=employeeRepository.findByNationalId(nationalId).orElseThrow();
+        var roles=new java.util.HashSet<>(actor.getRoles());roles.add(actor.getRole());
+        if(roles.contains(Employee.Role.SYSTEM_ADMIN)||roles.contains(Employee.Role.MAIN_MANAGER)
+                || (activeOnly && roles.contains(Employee.Role.WEEKEND_MANAGER))) {
+            return activeOnly ? employeeRepository.findByStatusOrderByFirstNameArAsc(Status.ACTIVE)
+                    : employeeRepository.findAll(Sort.by("firstNameAr"));
+        }
+        UUID dept=departmentRepository.findByManagerId(actor.getId())
+                .orElseThrow(()->new SecurityException("No managed department")).getId();
+        return activeOnly ? employeeRepository.findByDepartmentIdAndStatusOrderByFirstNameArAsc(dept,Status.ACTIVE)
+                : employeeRepository.findByDepartmentIdOrderByFirstNameArAsc(dept);
+    }
+
     // ── List all employees (admin employee management screen) ─────────────────
 
     @Transactional(readOnly = true)
-    public List<EmployeeSummaryDto> listAllEmployees() {
-        return employeeRepository.findAll(Sort.by("firstNameAr"))
+    public List<EmployeeSummaryDto> listAllEmployees(String nationalId) {
+        return scopedEmployees(nationalId, false)
                 .stream()
                 .map(e -> EmployeeSummaryDto.builder()
+                        .fullNameEn(e.getFullNameEn())
+                        .departmentNameEn(e.getDepartment() != null ? e.getDepartment().getNameEn() : null)
                         .id(e.getId())
                         .nationalId(e.getNationalId())
                         .firstNameAr(e.getFirstNameAr())
@@ -283,12 +304,14 @@ public class AdminService {
     // ── List active employees (for pickers — schedules, vacations, etc.) ──────
 
     @Transactional(readOnly = true)
-    public List<EmployeeSummaryDto> listActiveEmployees() {
-        return employeeRepository.findByStatusOrderByFirstNameArAsc(Status.ACTIVE)
+    public List<EmployeeSummaryDto> listActiveEmployees(String nationalId) {
+        return scopedEmployees(nationalId, true)
                 .stream()
                 .map(e -> EmployeeSummaryDto.builder()
+                        .fullNameEn(e.getFullNameEn())
+                        .departmentNameEn(e.getDepartment() != null ? e.getDepartment().getNameEn() : null)
                         .id(e.getId())
-                        .nationalId(e.getNationalId())
+                        .nationalId(maskId(e.getNationalId()))
                         .firstNameAr(e.getFirstNameAr())
                         .middleNameAr(e.getMiddleNameAr())
                         .lastNameAr(e.getLastNameAr())
@@ -327,10 +350,19 @@ public class AdminService {
     }
 
     @Transactional
-    public EmployeeSummaryDto updateEmployee(UUID employeeId, UpdateEmployeeRequest req) {
+    public EmployeeSummaryDto updateEmployee(UUID employeeId, UpdateEmployeeRequest req, String actorId) {
         Employee emp = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
+        Employee actor=employeeRepository.findByNationalId(actorId).orElseThrow();
+        boolean systemAdmin=actor.getRole()==Employee.Role.SYSTEM_ADMIN || actor.getRoles().contains(Employee.Role.SYSTEM_ADMIN);
+        boolean requestsAdmin="SYSTEM_ADMIN".equals(req.getRole()) || (req.getRoles()!=null && req.getRoles().contains("SYSTEM_ADMIN"));
+        if (!systemAdmin && (emp.getRole()==Employee.Role.SYSTEM_ADMIN || emp.getRoles().contains(Employee.Role.SYSTEM_ADMIN) || requestsAdmin))
+            throw new SecurityException("Only system administrators can manage system administrator accounts");
+        if (actor.getId().equals(emp.getId()) && (req.getRole()!=null || req.getRoles()!=null || req.getStatus()!=null))
+            throw new IllegalArgumentException("Use another administrator to change your own privileges or account status");
+
+        if (req.getFullNameEn() != null) emp.setFullNameEn(req.getFullNameEn().trim());
         if (req.getFirstNameAr()   != null) emp.setFirstNameAr(req.getFirstNameAr());
         // Allow explicitly clearing middle name by sending empty string
         if (req.getMiddleNameAr()  != null) emp.setMiddleNameAr(req.getMiddleNameAr().isBlank() ? null : req.getMiddleNameAr().trim());
@@ -373,6 +405,8 @@ public class AdminService {
         emp = employeeRepository.save(emp);
 
         return EmployeeSummaryDto.builder()
+                .fullNameEn(emp.getFullNameEn())
+                .departmentNameEn(emp.getDepartment() != null ? emp.getDepartment().getNameEn() : null)
                 .id(emp.getId())
                 .nationalId(emp.getNationalId())
                 .firstNameAr(emp.getFirstNameAr())

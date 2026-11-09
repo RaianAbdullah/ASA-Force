@@ -78,8 +78,9 @@ public class RefreshTokenService {
      * Returns a RotationResult with the new raw token and associated Employee on success.
      * Throws on any failure (expired, revoked, reuse detected, not found).
      */
-    @Transactional
+    @Transactional(noRollbackFor = SecurityException.class)
     public RotationResult rotate(String rawToken) {
+        if (rawToken == null || !rawToken.matches("[A-Za-z0-9_-]{43}")) throw new SecurityException("Invalid refresh token");
         String hash = sha256Hex(rawToken);
 
         RefreshTokenSession session = refreshRepo.findByTokenHash(hash)
@@ -134,6 +135,7 @@ public class RefreshTokenService {
     /** Revoke a specific refresh token (called on logout). */
     @Transactional
     public void revokeToken(String rawToken) {
+        if (rawToken == null || !rawToken.matches("[A-Za-z0-9_-]{43}")) throw new SecurityException("Invalid refresh token");
         String hash = sha256Hex(rawToken);
         Optional<RefreshTokenSession> session = refreshRepo.findByTokenHash(hash);
         session.ifPresent(s -> {

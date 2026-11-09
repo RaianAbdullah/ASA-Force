@@ -53,7 +53,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String ip   = extractIp(request);
-        String path = request.getRequestURI();
+        String path = "/api" + request.getRequestURI().substring(request.getContextPath().length());
+        path = path.replace("/auth/browser/", "/auth/");
         String method = request.getMethod();
 
         RateLimitResult result = check(path, method, ip);
@@ -157,7 +158,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private boolean isTrustedProxy(String ip) {
         if (trustedProxyCidrs == null || trustedProxyCidrs.isBlank()) return false;
         for (String cidr : trustedProxyCidrs.split(",")) {
-            if (ip.startsWith(cidr.trim())) return true; // Simple prefix match
+            if (new org.springframework.security.web.util.matcher.IpAddressMatcher(cidr.trim()).matches(ip)) return true; // Simple prefix match
         }
         return false;
     }

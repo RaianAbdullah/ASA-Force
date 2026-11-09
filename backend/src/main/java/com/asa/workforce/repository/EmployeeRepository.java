@@ -14,6 +14,15 @@ import java.util.UUID;
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
 
+    List<Employee> findByDepartmentIdOrderByFirstNameArAsc(UUID departmentId);
+    List<Employee> findByDepartmentIdAndStatusOrderByFirstNameArAsc(UUID departmentId, Employee.Status status);
+
+    long countByDepartmentIdAndStatus(UUID departmentId, Employee.Status status);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM Employee e WHERE e.nationalId = :nationalId")
+    Optional<Employee> findForAuthentication(String nationalId);
+
     boolean existsByNationalId(String nationalId);
     Optional<Employee> findByNationalId(String nationalId);
     boolean existsByPhoneNumber(String phoneNumber);

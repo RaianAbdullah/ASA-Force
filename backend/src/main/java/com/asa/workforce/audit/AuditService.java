@@ -16,24 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Writes immutable audit records for every security-relevant action.
- *
- * All writes are:
- * - Async       (non-blocking for the caller)
- * - REQUIRES_NEW transaction (persists even if the caller's transaction rolls back)
- *
- * IP extraction only trusts X-Forwarded-For when running behind a configured
- * trusted proxy. Without that config, remoteAddr is always used to prevent
- * IP address spoofing in audit records.
+/** Captures request metadata synchronously. AuditWriter persists the immutable event
+ * after the business transaction commits. Denied login/OTP counters deliberately commit.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AuditService {
 
-    private final AuditLogRepository auditLogRepository;
-    private final EmployeeRepository employeeRepository;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     @Value("${app.trusted-proxy-cidrs:}")
     private String trustedProxyCidrs;
@@ -80,42 +71,13 @@ public class AuditService {
         String ip = extractIp(request);
         String ua = extractUserAgent(request);
         UUID actorId = actor != null ? actor.getId() : null;
-        doLog(action, actorId, resourceType, resourceId, details, ip, ua);
+        events.publishEvent(new AuditEvent(action, actorId, resourceType, resourceId, details, ip, ua));
     }
 
     /** Convenience — log without a resource. */
     public void log(String action, Employee actor, Map<String, Object> details,
                     HttpServletRequest request) {
         log(action, actor, null, null, details, request);
-    }
-
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    protected void doLog(String action, UUID actorId,
-                         String resourceType, UUID resourceId,
-                         Map<String, Object> details, String ip, String ua) {
-        try {
-            Employee managedActor = null;
-            if (actorId != null) {
-                managedActor = employeeRepository.findById(actorId).orElse(null);
-            }
-            AuditLog entry = AuditLog.builder()
-                    .action(action)
-                    .actor(managedActor)
-                    .resourceType(resourceType)
-                    .resourceId(resourceId)
-                    .details(details)
-                    .ipAddress(ip)
-                    .userAgent(ua)
-                    .build();
-            auditLogRepository.save(entry);
-            log.debug("[AUDIT] {} actor={} resource={}:{}",
-                    action,
-                    managedActor != null ? managedActor.getNationalId() : "anonymous",
-                    resourceType, resourceId);
-        } catch (Exception ex) {
-            log.error("[AUDIT] Failed to persist audit record: {}", ex.getMessage(), ex);
-        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -152,7 +114,7 @@ public class AuditService {
     private boolean isTrustedProxy(String ip) {
         if (ip == null || trustedProxyCidrs == null || trustedProxyCidrs.isBlank()) return false;
         for (String cidr : trustedProxyCidrs.split(",")) {
-            if (ip.startsWith(cidr.trim())) return true;
+            if (new org.springframework.security.web.util.matcher.IpAddressMatcher(cidr.trim()).matches(ip)) return true;
         }
         return false;
     }

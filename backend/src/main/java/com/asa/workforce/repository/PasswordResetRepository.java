@@ -15,6 +15,7 @@ import java.util.UUID;
 @Repository
 public interface PasswordResetRepository extends JpaRepository<PasswordResetToken, UUID> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     Optional<PasswordResetToken> findByTokenHash(String tokenHash);
 
     /** Invalidate all unused, unexpired tokens for this employee before issuing a new one. */

@@ -60,6 +60,7 @@ public class AuthService {
     private final TokenBlacklistService   blacklistService;
     private final AuditService            auditService;
     private final PushNotificationService pushService;
+    private final com.asa.workforce.notification.CredentialDeliveryService delivery;
     private final SecureRandom            secureRandom = new SecureRandom();
 
     @Value("${app.otp.log-to-console:false}")
@@ -105,9 +106,7 @@ public class AuthService {
 
         emp = employeeRepository.save(emp);
 
-        if (otpLogToConsole) {
-            log.info("[DEV OTP] National ID={} OTP={} (expires {})", req.getNationalId(), otp, xAt);
-        }
+        delivery.send(emp.getPhoneNumber(), "ASA-Force verification code: " + otp + ". Expires in 5 minutes.");
 
         auditService.log(AuditService.REGISTER, emp,
                 Map.of("maskedId", mask(req.getNationalId())), httpReq);
@@ -152,10 +151,7 @@ public class AuthService {
         emp.setOtpAttempts((short) 0);
         employeeRepository.save(emp);
 
-        if (otpLogToConsole) {
-            log.info("[DEV OTP RESEND] National ID={} OTP={} (expires {})",
-                    mask(req.getNationalId()), otp, expiresAt);
-        }
+        delivery.send(emp.getPhoneNumber(), "ASA-Force verification code: " + otp + ". Expires in 5 minutes.");
 
         auditService.log(AuditService.REGISTER, emp,
                 Map.of("action", "otp_resend", "maskedId", mask(req.getNationalId())), httpReq);
@@ -164,9 +160,9 @@ public class AuthService {
 
     // ── Verify OTP ───────────────────────────────────────────────────────────
 
-    @Transactional
+    @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest req, HttpServletRequest httpReq) {
-        Employee emp = employeeRepository.findByNationalId(req.getNationalId())
+        Employee emp = employeeRepository.findForAuthentication(req.getNationalId())
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
         if (emp.getStatus() != Status.PENDING_VERIFICATION) {
@@ -218,9 +214,9 @@ public class AuthService {
 
     // ── Login ─────────────────────────────────────────────────────────────────
 
-    @Transactional
+    @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
     public LoginResponse login(LoginRequest req, HttpServletRequest httpReq) {
-        Employee emp = employeeRepository.findByNationalId(req.getNationalId())
+        Employee emp = employeeRepository.findForAuthentication(req.getNationalId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
 
         if (emp.getLoginLockedUntil() != null &&
@@ -291,7 +287,7 @@ public class AuthService {
 
     // ── Token Refresh ─────────────────────────────────────────────────────────
 
-    @Transactional
+    @Transactional(noRollbackFor = IllegalStateException.class)
     public LoginResponse refresh(RefreshRequest req, HttpServletRequest httpReq) {
         RefreshTokenService.RotationResult result;
         try {
@@ -331,6 +327,7 @@ public class AuthService {
                         ? emp.getDepartment().getNameAr()
                         : null)
                 .status(emp.getStatus().name())
+                .mustChangePassword(emp.isMustChangePassword())
                 .build();
     }
 
@@ -433,13 +430,7 @@ public class AuthService {
                 .build();
         passwordResetRepository.save(prt);
 
-        if (otpLogToConsole) {
-            log.info("[DEV RESET] nationalId={} resetToken={} (expires {}min)",
-                    mask(req.getNationalId()), rawHex, RESET_TOKEN_EXPIRY_MINUTES);
-        } else {
-            log.info("[AUTH] Password reset requested for nationalId={}", mask(req.getNationalId()));
-            // TODO: integrate SMS/email delivery here
-        }
+        delivery.send(emp.getPhoneNumber(), "ASA-Force password reset token: " + rawHex + ". Expires in 15 minutes. Use it on the reset-password screen.");
     }
 
     @Transactional
@@ -465,6 +456,7 @@ public class AuthService {
         // Reset password and record timestamp
         emp.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
         emp.setPasswordChangedAt(OffsetDateTime.now());
+        emp.setMustChangePassword(false);
         emp.setLoginAttempts((short) 0);
         emp.setLoginLockedUntil(null);
         employeeRepository.save(emp);
@@ -493,6 +485,7 @@ public class AuthService {
 
         emp.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
         emp.setPasswordChangedAt(OffsetDateTime.now());
+        emp.setMustChangePassword(false);
         emp.setMustChangePassword(false);   // clear forced-change flag set by admin creation
         employeeRepository.save(emp);
 
@@ -568,6 +561,8 @@ public class AuthService {
 
         int revoked = 0;
         if (emp != null) {
+            emp.setPasswordChangedAt(OffsetDateTime.now());
+            employeeRepository.save(emp);
             revoked = refreshTokenService.revokeAllForEmployee(emp.getId());
         }
 

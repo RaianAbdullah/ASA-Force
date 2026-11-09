@@ -22,6 +22,11 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Slf4j
 public class RateLimitService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private SharedRateLimitStore sharedStore;
+    @org.springframework.beans.factory.annotation.Value("${app.rate-limit.shared:false}")
+    private boolean shared;
+
     // ── Limits ───────────────────────────────────────────────────────────────
 
     public static final int  REGISTER_MAX  = 3;
@@ -71,27 +76,21 @@ public class RateLimitService {
      * @param windowMs  window duration in milliseconds
      */
     public boolean isAllowed(String key, int maxEvents, long windowMs) {
-        Deque<Long> timestamps = buckets.computeIfAbsent(key, k -> new ConcurrentLinkedDeque<>());
-        long now    = System.currentTimeMillis();
-        long cutoff = now - windowMs;
-
-        // Prune expired entries from the front
-        while (!timestamps.isEmpty() && timestamps.peekFirst() < cutoff) {
-            timestamps.pollFirst();
-        }
-
-        if (timestamps.size() >= maxEvents) {
-            log.warn("[RATE-LIMIT] Bucket '{}' exceeded ({}/{} in {}s window)",
-                    key, timestamps.size(), maxEvents, windowMs / 1000);
-            return false;
-        }
-
-        timestamps.addLast(now);
-        return true;
+        if (shared) return sharedStore.allowed(key, maxEvents, windowMs);
+        java.util.concurrent.atomic.AtomicBoolean allowed = new java.util.concurrent.atomic.AtomicBoolean();
+        long now = System.currentTimeMillis();
+        buckets.compute(key, (k, timestamps) -> {
+            if (timestamps == null) timestamps = new ConcurrentLinkedDeque<>();
+            while (!timestamps.isEmpty() && timestamps.peekFirst() < now - windowMs) timestamps.pollFirst();
+            if (timestamps.size() < maxEvents) { timestamps.addLast(now); allowed.set(true); }
+            return timestamps;
+        });
+        return allowed.get();
     }
 
     /** Remaining capacity for a key (for X-RateLimit-Remaining header). */
     public int remaining(String key, int maxEvents, long windowMs) {
+        if (shared) return sharedStore.remaining(key, maxEvents);
         Deque<Long> d = buckets.get(key);
         if (d == null) return maxEvents;
         long cutoff = System.currentTimeMillis() - windowMs;
@@ -105,15 +104,11 @@ public class RateLimitService {
     @Scheduled(fixedDelay = 5 * 60_000)
     void evictStaleBuckets() {
         long cutoff = System.currentTimeMillis() - Math.max(REGISTER_WIN, LOGIN_WIN);
-        int removed = 0;
-        for (var entry : buckets.entrySet()) {
-            Deque<Long> d = entry.getValue();
-            while (!d.isEmpty() && d.peekFirst() < cutoff) d.pollFirst();
-            if (d.isEmpty()) {
-                buckets.remove(entry.getKey());
-                removed++;
-            }
+        for (String key : buckets.keySet()) {
+            buckets.computeIfPresent(key, (k, d) -> {
+                while (!d.isEmpty() && d.peekFirst() < cutoff) d.pollFirst();
+                return d.isEmpty() ? null : d;
+            });
         }
-        if (removed > 0) log.debug("[RATE-LIMIT] Evicted {} stale buckets", removed);
     }
 }

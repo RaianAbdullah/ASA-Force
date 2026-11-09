@@ -48,6 +48,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     token:        'access.token.value',
     refreshToken: 'refresh.token.value',
     role:         'EMPLOYEE',
+    roles:        ['EMPLOYEE'],
     nameAr:       'أحمد محمد',
     employeeId:   'emp-uuid-001',
     ...overrides,

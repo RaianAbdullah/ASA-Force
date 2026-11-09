@@ -23,7 +23,7 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    @Value("${app.cors.allowed-origins:*}")
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOriginsRaw;
 
     @Bean
@@ -35,16 +35,16 @@ public class CorsConfig {
 
         CorsConfiguration config = new CorsConfiguration();
         if (allowedOrigins.contains("*")) {
-            config.setAllowedOriginPatterns(List.of("*"));
+            throw new IllegalStateException("Credentialed browser access requires explicit CORS origins");
         } else {
             config.setAllowedOrigins(allowedOrigins);
         }
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of(
             "Authorization", "Content-Type", "Accept", "X-Requested-With",
-            "X-Request-ID", "X-Correlation-ID"
+            "X-Request-ID", "X-Correlation-ID", "X-ASA-Browser"
         ));
-        config.setExposedHeaders(List.of("X-Request-ID", "X-Correlation-ID"));
+        config.setExposedHeaders(List.of("X-Request-ID", "X-Correlation-ID", "X-ASA-Browser"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

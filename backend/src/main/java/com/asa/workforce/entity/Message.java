@@ -22,6 +22,10 @@ public class Message {
     @JoinColumn(name = "sender_id", nullable = false)
     private Employee sender;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
+
     /** Text body — nullable when the message is attachment-only. */
     @Column(columnDefinition = "TEXT")
     private String body;

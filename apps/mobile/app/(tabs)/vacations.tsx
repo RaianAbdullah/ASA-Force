@@ -191,13 +191,13 @@ export default function VacationsScreen() {
 
   const { data: requests = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ['vacation-requests'],
-    queryFn:  async () => { const r = await vacationApi.list(); return r.data ?? []; },
+    queryFn:  async () => { const r = await vacationApi.getMyRequests(); return r.data ?? []; },
     staleTime: 30_000,
   });
 
   const submitMutation = useMutation({
     mutationFn: ({ startDate, endDate, reason }: { startDate: string; endDate: string; reason: string }) =>
-      vacationApi.submit({ startDate, endDate, reason }),
+      vacationApi.submit(startDate, endDate, reason),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['vacation-requests'] });

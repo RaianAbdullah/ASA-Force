@@ -7,6 +7,8 @@ import lombok.Data;
 
 @Data
 public class CreateEmployeeRequest {
+    @jakarta.validation.constraints.Size(max = 300)
+    private String fullNameEn;
 
     @NotBlank
     @Pattern(regexp = "\\d{10}", message = "National ID must be exactly 10 digits")

@@ -96,8 +96,8 @@ public class AdminController {
     @GetMapping("/employees")
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','MAIN_MANAGER','DEPARTMENT_MANAGER','WEEKEND_MANAGER')")
     @Operation(summary = "List all employees with status and contact info (admin management)")
-    public ResponseEntity<ApiResponse<List<EmployeeSummaryDto>>> listEmployees() {
-        return ResponseEntity.ok(ApiResponse.ok(adminService.listAllEmployees()));
+    public ResponseEntity<ApiResponse<List<EmployeeSummaryDto>>> listEmployees(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.listAllEmployees(auth.getName())));
     }
 
     // ── GET /v1/admin/employees/active ───────────────────────────────────────
@@ -106,8 +106,8 @@ public class AdminController {
     @GetMapping("/employees/active")
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','MAIN_MANAGER','DEPARTMENT_MANAGER','WEEKEND_MANAGER')")
     @Operation(summary = "List active employees only (for schedule/picker flows)")
-    public ResponseEntity<ApiResponse<List<EmployeeSummaryDto>>> listActiveEmployees() {
-        return ResponseEntity.ok(ApiResponse.ok(adminService.listActiveEmployees()));
+    public ResponseEntity<ApiResponse<List<EmployeeSummaryDto>>> listActiveEmployees(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.listActiveEmployees(auth.getName())));
     }
 
     // ── PATCH /v1/admin/employees/{employeeId} ───────────────────────────────
@@ -116,9 +116,10 @@ public class AdminController {
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','MAIN_MANAGER')")
     @Operation(summary = "Update an employee's details, role, or status")
     public ResponseEntity<ApiResponse<EmployeeSummaryDto>> updateEmployee(
+            Authentication auth,
             @PathVariable UUID employeeId,
-            @RequestBody UpdateEmployeeRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(adminService.updateEmployee(employeeId, request)));
+            @jakarta.validation.Valid @RequestBody UpdateEmployeeRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.updateEmployee(employeeId, request, auth.getName())));
     }
 
     // ── POST /v1/admin/employees ─────────────────────────────────────────────

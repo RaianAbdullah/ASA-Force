@@ -7,6 +7,8 @@ import java.util.UUID;
 
 @Data
 public class UpdateEmployeeRequest {
+    @jakarta.validation.constraints.Size(max = 300)
+    private String fullNameEn;
     private String       firstNameAr;
     private String       middleNameAr;
     private String       lastNameAr;

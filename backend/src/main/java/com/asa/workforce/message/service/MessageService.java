@@ -46,6 +46,8 @@ public class MessageService {
 
     private final MessageRepository  messageRepository;
     private final EmployeeRepository employeeRepository;
+    private final AttachmentValidator attachmentValidator;
+    private final com.asa.workforce.message.repository.MessageAttachmentRepository attachments;
 
     @Value("${app.attachments.dir:/tmp/asa-attachments}")
     private String attachmentDirStr;
@@ -54,7 +56,7 @@ public class MessageService {
 
     @PostConstruct
     void init() throws IOException {
-        attachmentDir = Paths.get(attachmentDirStr);
+        attachmentDir = Paths.get(attachmentDirStr).toAbsolutePath().normalize();
         Files.createDirectories(attachmentDir);
         log.info("[Messages] Attachment directory: {}", attachmentDir.toAbsolutePath());
     }
@@ -63,16 +65,18 @@ public class MessageService {
 
     /** Latest PAGE_SIZE messages, returned oldest-first for chat rendering */
     @Transactional(readOnly = true)
-    public List<MessageDto> listRecent() {
-        List<Message> msgs = messageRepository.findRecentMessages(PAGE_SIZE);
+    public List<MessageDto> listRecent(String nationalId) {
+        Employee actor = findEmployee(nationalId);
+        List<Message> msgs = messageRepository.recent(actor.getId(), departmentId(actor), management(actor), org.springframework.data.domain.PageRequest.of(0, PAGE_SIZE));
         Collections.reverse(msgs);
         return msgs.stream().map(this::toDto).toList();
     }
 
     /** All messages sent after `after` (used for polling), oldest-first */
     @Transactional(readOnly = true)
-    public List<MessageDto> listAfter(OffsetDateTime after) {
-        return messageRepository.findAfter(after).stream()
+    public List<MessageDto> listAfter(String nationalId, OffsetDateTime after) {
+        Employee actor = findEmployee(nationalId);
+        return messageRepository.after(actor.getId(), departmentId(actor), management(actor), after, org.springframework.data.domain.PageRequest.of(0, PAGE_SIZE)).stream()
                 .map(this::toDto).toList();
     }
 
@@ -85,8 +89,10 @@ public class MessageService {
             throw new IllegalArgumentException("Message body is required");
         }
         Employee sender = findEmployee(nationalId);
+        if (sender.getDepartment() == null) throw new IllegalStateException("Assign a department before using department messages");
         Message m = Message.builder()
                 .sender(sender)
+                .department(sender.getDepartment())
                 .body(body)
                 .build();
         return toDto(messageRepository.save(m));
@@ -102,7 +108,9 @@ public class MessageService {
         }
 
         Employee sender = findEmployee(nationalId);
+        if (sender.getDepartment() == null) throw new IllegalStateException("Assign a department before using department messages");
 
+        if (bodyText != null && bodyText.length() > 2000) throw new IllegalArgumentException("Message exceeds 2000 characters");
         String storedFilename  = null;
         String attachmentType  = null;
         String attachmentName  = null;
@@ -120,6 +128,7 @@ public class MessageService {
             if (!ALLOWED_ATTACHMENT_EXTENSIONS.contains(extension)) {
                 throw new IllegalArgumentException("Unsupported attachment extension");
             }
+            attachmentValidator.validate(file, extension);
             if (safeName.length() > 120) safeName = safeName.substring(safeName.length() - 120);
             storedFilename     = UUID.randomUUID() + "_" + safeName;
             Path dest          = attachmentDir.resolve(storedFilename).normalize();
@@ -129,7 +138,7 @@ public class MessageService {
                 throw new SecurityException("Invalid filename");
             }
 
-            Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+            attachments.save(new com.asa.workforce.entity.MessageAttachment(storedFilename, file.getBytes()));
 
             attachmentType     = (contentType != null && contentType.startsWith("image/")) ? "image" : "file";
             attachmentName     = original != null ? original : safeName;
@@ -137,6 +146,7 @@ public class MessageService {
 
         Message m = Message.builder()
                 .sender(sender)
+                .department(sender.getDepartment())
                 .body(bodyText != null && !bodyText.isBlank() ? bodyText.strip() : null)
                 .attachmentPath(storedFilename)
                 .attachmentType(attachmentType)
@@ -148,12 +158,20 @@ public class MessageService {
 
     // ── Serve attachment ──────────────────────────────────────────────────────
 
-    public Path resolveAttachment(String filename) {
+    @Transactional(readOnly = true)
+    public org.springframework.core.io.Resource resolveAttachment(String nationalId, String filename) {
+        Employee actor = findEmployee(nationalId);
+        Message message = messageRepository.findByAttachmentPath(filename)
+                .orElseThrow(() -> new NoSuchElementException("Attachment not found"));
+        requireVisible(actor, message);
+        var stored = attachments.findById(filename);
+        if (stored.isPresent()) return new org.springframework.core.io.ByteArrayResource(stored.get().getContent());
+        // Backwards compatibility for pre-migration files on an existing durable volume.
         Path resolved = attachmentDir.resolve(filename).normalize();
-        if (!resolved.startsWith(attachmentDir)) {
-            throw new SecurityException("Invalid attachment path");
+        if (!resolved.startsWith(attachmentDir) || !Files.isRegularFile(resolved)) {
+            throw new NoSuchElementException("Attachment not found");
         }
-        return resolved;
+        return new org.springframework.core.io.FileSystemResource(resolved);
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────
@@ -163,6 +181,7 @@ public class MessageService {
         Message m = messageRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Message not found: " + id));
         Employee requester = findEmployee(nationalId);
+        requireVisible(requester, m);
         boolean isSender = m.getSender().getId().equals(requester.getId());
         boolean isAdmin  = switch (requester.getRole()) {
             case SYSTEM_ADMIN, MAIN_MANAGER, DEPARTMENT_MANAGER -> true;
@@ -171,18 +190,28 @@ public class MessageService {
         if (!isSender && !isAdmin) {
             throw new SecurityException("Not allowed to delete this message");
         }
-        // Also delete the physical file if present
-        if (m.getAttachmentPath() != null) {
-            try {
-                Files.deleteIfExists(attachmentDir.resolve(m.getAttachmentPath()));
-            } catch (IOException ex) {
-                log.warn("[Messages] Could not delete attachment file: {}", m.getAttachmentPath(), ex);
-            }
-        }
+        if (m.getAttachmentPath() != null) attachments.deleteById(m.getAttachmentPath());
+        // Legacy disk files are retained for offline cleanup after the transaction commits.
         messageRepository.delete(m);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private UUID departmentId(Employee e) { return e.getDepartment() == null ? null : e.getDepartment().getId(); }
+
+    private boolean management(Employee e) {
+        return (e.getRole() == Employee.Role.SYSTEM_ADMIN || e.getRoles().contains(Employee.Role.SYSTEM_ADMIN)) || (e.getRole() == Employee.Role.MAIN_MANAGER || e.getRoles().contains(Employee.Role.MAIN_MANAGER));
+    }
+
+    private void requireVisible(Employee actor, Message message) {
+        boolean own = actor.getId().equals(message.getSender().getId());
+        boolean sameDepartment = message.getDepartment() != null
+                && message.getDepartment().getId().equals(departmentId(actor));
+        if (!management(actor) && !own && !sameDepartment) {
+            log.warn("[ACCESS] Denied message actor={} message={}", actor.getId(), message.getId());
+            throw new NoSuchElementException("Message not found");
+        }
+    }
 
     private Employee findEmployee(String nationalId) {
         return employeeRepository.findByNationalId(nationalId)

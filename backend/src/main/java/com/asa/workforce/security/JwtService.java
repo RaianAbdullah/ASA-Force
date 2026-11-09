@@ -92,6 +92,7 @@ public class JwtService {
                 .subject(employee.getNationalId())
                 .id(UUID.randomUUID().toString())          // jti — used for revocation
                 .claim("employeeId", employee.getId().toString())
+                .claim("credentialVersion", employee.getPasswordChangedAt() == null ? 0L : employee.getPasswordChangedAt().toInstant().toEpochMilli())
                 .claim("role",       employee.getRole().name())
                 .claim("name",       employee.getFirstNameAr() + " " + employee.getLastNameAr())
                 .issuedAt(Date.from(now))

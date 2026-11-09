@@ -34,7 +34,7 @@ public class WeeklySchedule {
     private LocalDate weekStart;
 
     /** Comma-separated day abbreviations: MON,TUE,WED,THU,SUN */
-    @Column(name = "work_days", nullable = false, length = 20)
+    @Column(name = "work_days", nullable = false, length = 27)
     private String workDays;
 
     @Column(name = "shift_start", nullable = false)

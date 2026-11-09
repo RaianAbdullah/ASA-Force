@@ -14,6 +14,7 @@ export interface Session {
   nameAr: string;
   employeeId: string;
   departmentNameAr?: string;
+  mustChangePassword?: boolean;
 }
 
 const parseJwt = (token: string) => {
@@ -30,54 +31,16 @@ export const isTokenExpired = (token: string): boolean => {
   return decoded.exp * 1000 < Date.now();
 };
 
-export const saveSession = (session: Session) => {
-  localStorage.setItem('asa_jwt', session.token);
-  localStorage.setItem('asa_refresh', session.refreshToken);
-  localStorage.setItem('asa_role', session.role);
-  localStorage.setItem('asa_roles', JSON.stringify(session.roles));
-  localStorage.setItem('asa_name', session.nameAr);
-  localStorage.setItem('asa_eid', session.employeeId);
-  if (session.departmentNameAr) {
-    localStorage.setItem('asa_department_name_ar', session.departmentNameAr);
-  } else {
-    localStorage.removeItem('asa_department_name_ar');
-  }
-};
-
-export const loadSession = (): Session | null => {
-  const token = localStorage.getItem('asa_jwt');
-  const refreshToken = localStorage.getItem('asa_refresh');
-  const role = localStorage.getItem('asa_role') as EmployeeRole;
-  const rolesStr = localStorage.getItem('asa_roles');
-  const nameAr = localStorage.getItem('asa_name');
-  const employeeId = localStorage.getItem('asa_eid');
-  const departmentNameAr = localStorage.getItem('asa_department_name_ar') || undefined;
-
-  if (!token || !refreshToken || !role || !rolesStr || !nameAr || !employeeId) {
-    return null;
-  }
-
-  try {
-    const roles = JSON.parse(rolesStr);
-    return { token, refreshToken, role, roles, nameAr, employeeId, departmentNameAr };
-  } catch {
-    return null;
-  }
-};
-
-export const clearSession = () => {
-  localStorage.removeItem('asa_jwt');
-  localStorage.removeItem('asa_refresh');
-  localStorage.removeItem('asa_role');
-  localStorage.removeItem('asa_roles');
-  localStorage.removeItem('asa_name');
-  localStorage.removeItem('asa_eid');
-  localStorage.removeItem('asa_department_name_ar');
-};
-
-export const updateTokens = (token: string, refreshToken: string) => {
-  localStorage.setItem('asa_jwt', token);
-  localStorage.setItem('asa_refresh', refreshToken);
+// Tokens live in memory only. The refresh credential is an HttpOnly cookie.
+let currentSession: Session | null = null;
+for (const key of ['asa_jwt', 'asa_refresh', 'asa_role', 'asa_roles', 'asa_name', 'asa_eid', 'asa_department_name_ar']) {
+  localStorage.removeItem(key);
+}
+export const saveSession = (session: Session) => { currentSession = { ...session, refreshToken: '' }; };
+export const loadSession = (): Session | null => currentSession;
+export const clearSession = () => { currentSession = null; };
+export const updateTokens = (token: string, _refreshToken?: string) => {
+  if (currentSession) currentSession = { ...currentSession, token, refreshToken: '' };
 };
 
 export const hasAnyRole = (roles: EmployeeRole[], allowedRoles: string[]): boolean => {

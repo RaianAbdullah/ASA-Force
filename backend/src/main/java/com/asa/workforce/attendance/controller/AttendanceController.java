@@ -63,7 +63,7 @@ public class AttendanceController {
             @RequestParam(defaultValue = "30") int size,
             Authentication auth) {
 
-        Page<AttendanceResponse> data = attendanceService.getHistory(auth.getName(), page, size);
+        Page<AttendanceResponse> data = attendanceService.getHistory(auth.getName(), Math.max(0, page), Math.max(1, Math.min(size, 100)));
         return ResponseEntity.ok(ApiResponse.ok(data));
     }
 }

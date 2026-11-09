@@ -1,5 +1,7 @@
 # ASA-Force Initial Security Assessment
 
+> Historical baseline. Several findings below are now remediated in source. See [November remediation and upgrade instructions](security-remediation.md) for current status and verification limits.
+
 ## Assessment status
 
 This is an initial, non-destructive security review of the source code and configuration. It is not a penetration test of the live Render deployment.

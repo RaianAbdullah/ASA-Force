@@ -1,34 +1,12 @@
-# Known Limitations
+# Current limitations
 
-This document honestly records what is not yet implemented, designed only, or has known shortcomings.
+Updated November 2026. See [security remediation and upgrade instructions](security-remediation.md) for implemented controls and migration requirements.
 
-Last updated: Stage 1
-
----
-
-## Stage 1 Limitations
-
-| Area             | Limitation                                             | Planned For |
-|------------------|-------------------------------------------------------|-------------|
-| Authentication   | No JWT auth — all endpoints are currently public      | Stage 4     |
-| Database         | No schema, no migrations                              | Stage 2     |
-| Registration     | Not implemented                                       | Stage 3     |
-| OTP              | Not implemented                                       | Stage 3     |
-| Rate Limiting    | Not implemented                                       | Stage 4     |
-| Redis            | Not connected                                         | Stage 3     |
-| Notifications    | Not implemented                                       | Stage 3     |
-| Schedules        | Not implemented                                       | Stage 7     |
-| Attendance       | Not implemented                                       | Stage 8     |
-| Vacation         | Not implemented                                       | Stage 9     |
-| QR check-in      | Designed only                                         | Stage 11    |
-| Geofencing       | Designed only                                         | Stage 11    |
-| Push notifications| Not implemented                                      | Stage 11    |
-| Biometric unlock | Not implemented                                       | Stage 11    |
-| i18n (full)      | Arabic text shown statically, no runtime switching    | Stage 10    |
-
-## Permanent Limitations
-
-- Geofencing does not guarantee physical presence — it is a risk signal only
-- QR check-in does not eliminate attendance fraud — dynamic QR reduces but does not eliminate it
-- GPS spoofing cannot be fully detected on mobile without additional hardware signals
-- Short JWT expiry (15 min) means revoked accounts can access the system for up to 15 minutes after revocation — mitigated by checking DB status on sensitive operations
+- Nafath, device attestation, privileged MFA and certificate pinning remain future integrations; no verification success is simulated.
+- The credential delivery adapter needs an organisation-controlled HTTPS SMS gateway and deployment secrets. Real delivery has not been validated by local tests.
+- Content validation is not antivirus scanning. New attachments are database-backed; legacy disk attachments still require a separate backup until migrated.
+- Production proxy CIDRs and geofence coordinates must be supplied by the operator. Geofencing is a coordinate check, not proof of physical presence.
+- Scheduling currently supports Sunday-start weeks and same-day shifts. Overnight shift workflows are explicitly unsupported.
+- Department messages are visible to their department, the sender and senior management. Old messages with no recorded audience are limited to the sender and senior management.
+- Automated unit/integration tests do not establish usability, production throughput, real-device behaviour or recovery time. Representative field studies, load tests and restore drills remain necessary.
+- Current-source credential removal does not erase historical Git objects or rotate live secrets. Follow the controlled upgrade instructions before deployment.

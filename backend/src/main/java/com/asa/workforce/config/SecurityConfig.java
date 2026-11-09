@@ -60,6 +60,10 @@ public class SecurityConfig {
         http
             // ── CSRF: disabled for stateless JWT API ──────────────────────────
             .csrf(AbstractHttpConfigurer::disable)
+            .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
+                res.setStatus(401); res.setContentType("application/json");
+                res.getWriter().write("{\"success\":false,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Sign in required\"}}");
+            }))
 
             // Use the shared CorsConfigurationSource for browser preflight
             // requests before authentication and authorization are evaluated.
@@ -128,6 +132,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Public — auth flow
                 .requestMatchers(HttpMethod.POST,
+                    "/v1/auth/browser/login",
+                    "/v1/auth/browser/refresh",
                     "/v1/auth/register",
                     "/v1/auth/verify-otp",
                     "/v1/auth/login",
@@ -162,7 +168,7 @@ public class SecurityConfig {
                         .AuthorizationDecision(swaggerEnabled))
                 // Admin routes — managers and above only
                 .requestMatchers("/v1/admin/**")
-                    .hasAnyRole("SYSTEM_ADMIN", "MAIN_MANAGER", "DEPARTMENT_MANAGER")
+                    .hasAnyRole("SYSTEM_ADMIN", "MAIN_MANAGER", "DEPARTMENT_MANAGER", "WEEKEND_MANAGER")
                 // Notification token — any authenticated user
                 .requestMatchers(HttpMethod.POST, "/v1/notifications/push-token").authenticated()
                 // Attendance — authenticated employees

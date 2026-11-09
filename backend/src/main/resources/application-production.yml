@@ -17,12 +17,12 @@ app:
   otp:
     log-to-console: false
 
-  trusted-proxy-cidrs: ""
+  trusted-proxy-cidrs: "${TRUSTED_PROXY_CIDRS:}"
 
   geofence:
-    latitude: 24.669812
-    longitude: 46.695437
-    radius-meters: 100
+    latitude: ${GEOFENCE_LATITUDE}
+    longitude: ${GEOFENCE_LONGITUDE}
+    radius-meters: ${GEOFENCE_RADIUS_METERS:100}
 
 springdoc:
   swagger-ui:
@@ -73,3 +73,8 @@ spring.task:
     max-size: 16
     queue-capacity: 200
   scheduling.pool.size: 2
+
+app.rate-limit.shared: true
+
+app.delivery.url: ${CREDENTIAL_DELIVERY_URL}
+app.delivery.token: ${CREDENTIAL_DELIVERY_TOKEN}

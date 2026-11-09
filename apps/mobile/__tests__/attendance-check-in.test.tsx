@@ -212,6 +212,7 @@ describe('HomeScreen — attendance check-in / check-out', () => {
 
     const { getByTestId } = await render(<HomeScreen />);
 
+    await waitFor(() => expect(getByTestId('btn-check-in')).toBeTruthy());
     await act(async () => {
       fireEvent.press(getByTestId('btn-check-in'));
     });
@@ -248,6 +249,7 @@ describe('HomeScreen — attendance check-in / check-out', () => {
 
     const { getByTestId } = await render(<HomeScreen />);
 
+    await waitFor(() => expect(getByTestId('btn-check-in')).toBeTruthy());
     await act(async () => {
       fireEvent.press(getByTestId('btn-check-in'));
     });
@@ -295,6 +297,7 @@ describe('HomeScreen — attendance check-in / check-out', () => {
 
     const { getByTestId } = await render(<HomeScreen />);
 
+    await waitFor(() => expect(getByTestId('btn-check-in')).toBeTruthy());
     await act(async () => {
       fireEvent.press(getByTestId('btn-check-in'));
     });
@@ -326,6 +329,7 @@ describe('HomeScreen — attendance check-in / check-out', () => {
 
     const { getByTestId } = await render(<HomeScreen />);
 
+    await waitFor(() => expect(getByTestId('btn-check-in')).toBeTruthy());
     await act(async () => {
       fireEvent.press(getByTestId('btn-check-in'));
     });
@@ -357,6 +361,7 @@ describe('HomeScreen — attendance check-in / check-out', () => {
 
     const { getByTestId } = await render(<HomeScreen />);
 
+    await waitFor(() => expect(getByTestId('btn-check-out')).toBeTruthy());
     await act(async () => {
       fireEvent.press(getByTestId('btn-check-out'));
     });
@@ -394,6 +399,7 @@ describe('HomeScreen — attendance check-in / check-out', () => {
 
     const { getByTestId } = await render(<HomeScreen />);
 
+    await waitFor(() => expect(getByTestId('btn-check-out')).toBeTruthy());
     await act(async () => {
       fireEvent.press(getByTestId('btn-check-out'));
     });

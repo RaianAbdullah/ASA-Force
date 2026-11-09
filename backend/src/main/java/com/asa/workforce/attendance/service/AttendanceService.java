@@ -45,6 +45,8 @@ public class AttendanceService {
     private final WeeklyScheduleRepository scheduleRepository;
     private final GeofenceService          geofenceService;
     private final AuditService             auditService;
+    private final AttendanceWindow window;
+    private final com.asa.workforce.repository.DepartmentRepository departmentRepository;
 
     @Value("${spring.profiles.active:production}")
     private String activeProfile;
@@ -54,8 +56,10 @@ public class AttendanceService {
     @Transactional
     public AttendanceResponse checkIn(String nationalId, CheckInRequest req,
                                       HttpServletRequest httpReq) {
-        Employee emp = findActive(nationalId);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        Employee emp = employeeRepository.findForAuthentication(nationalId)
+                .filter(e -> e.getStatus() == Employee.Status.ACTIVE)
+                .orElseThrow(() -> new SecurityException("Active account required"));
+        LocalDate today = window.now().toLocalDate();
 
         // Prevent double check-in
         if (attendanceRepository.findByEmployeeIdAndAttendanceDate(emp.getId(), today).isPresent()) {
@@ -66,16 +70,8 @@ public class AttendanceService {
         Optional<WeeklySchedule> scheduleOpt = scheduleRepository
                 .findCurrentForEmployee(emp.getId(), today, today.minusDays(7));
 
-        // Enforce shift-start window: check-in opens 30 minutes before shift
-        if (scheduleOpt.isPresent()) {
-            LocalTime nowUtc   = LocalTime.now(ZoneOffset.UTC);
-            LocalTime earliest = scheduleOpt.get().getShiftStart().minusMinutes(30);
-            if (nowUtc.isBefore(earliest)) {
-                String starts = scheduleOpt.get().getShiftStart().toString().substring(0, 5);
-                throw new IllegalStateException(
-                    "Check-in is not available yet. Your shift starts at " + starts +
-                    ". Check-in opens 30 minutes before your shift.");
-            }
+        if (!window.isOpen(scheduleOpt.orElse(null), window.now())) {
+            throw new IllegalStateException("Check-in requires an assigned work day and an open shift window");
         }
 
         // Geofence validation (bypassable in dev profile only)
@@ -105,7 +101,7 @@ public class AttendanceService {
         if (scheduleOpt.isPresent()) {
             WeeklySchedule schedule = scheduleOpt.get();
             LocalTime deadline = schedule.getShiftStart().plusMinutes(GRACE_MINUTES);
-            LocalTime nowLocal = now.atZoneSameInstant(ZoneOffset.UTC).toLocalTime();
+            LocalTime nowLocal = window.now().toLocalTime();
             if (nowLocal.isAfter(deadline)) {
                 status = Status.LATE;
                 minutesLate = (short) ChronoUnit.MINUTES.between(schedule.getShiftStart(), nowLocal);
@@ -140,8 +136,10 @@ public class AttendanceService {
     @Transactional
     public AttendanceResponse checkOut(String nationalId, CheckOutRequest req,
                                        HttpServletRequest httpReq) {
-        Employee emp = findActive(nationalId);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        Employee emp = employeeRepository.findForAuthentication(nationalId)
+                .filter(e -> e.getStatus() == Employee.Status.ACTIVE)
+                .orElseThrow(() -> new SecurityException("Active account required"));
+        LocalDate today = window.now().toLocalDate();
 
         Attendance record = attendanceRepository
                 .findByEmployeeIdAndAttendanceDate(emp.getId(), today)
@@ -180,7 +178,7 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public AttendanceResponse getToday(String nationalId) {
         Employee emp = findActive(nationalId);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate today = window.now().toLocalDate();
 
         Optional<Attendance> record = attendanceRepository
                 .findByEmployeeIdAndAttendanceDate(emp.getId(), today);
@@ -206,8 +204,23 @@ public class AttendanceService {
     // ── Admin: today's summary ────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public AdminAttendanceSummary getDaySummary(LocalDate date, UUID departmentId) {
-        LocalDate today = date != null ? date : LocalDate.now(ZoneOffset.UTC);
+    public AdminAttendanceSummary getDaySummary(String nationalId, LocalDate date, UUID departmentId) {
+        Employee actor = findActive(nationalId);
+        if (!(actor.getRole() == Employee.Role.SYSTEM_ADMIN || actor.getRoles().contains(Employee.Role.SYSTEM_ADMIN))
+                && !(actor.getRole() == Employee.Role.MAIN_MANAGER || actor.getRoles().contains(Employee.Role.MAIN_MANAGER))) {
+            if (!(actor.getRole() == Employee.Role.DEPARTMENT_MANAGER || actor.getRoles().contains(Employee.Role.DEPARTMENT_MANAGER))
+                    && !(actor.getRole() == Employee.Role.WEEKEND_MANAGER || actor.getRoles().contains(Employee.Role.WEEKEND_MANAGER))) {
+                throw new SecurityException("Attendance management permission required");
+            }
+            UUID managed = departmentRepository.findByManagerId(actor.getId())
+                    .orElseThrow(() -> new SecurityException("No managed department")).getId();
+            if (departmentId != null && !managed.equals(departmentId)) {
+                log.warn("[ACCESS] Denied attendance scope actor={} department={}", actor.getId(), departmentId);
+                throw new SecurityException("Department access denied");
+            }
+            departmentId = managed;
+        }
+        LocalDate today = date != null ? date : window.now().toLocalDate();
 
         List<Attendance> records = departmentId != null
                 ? attendanceRepository.findAllByDateAndDepartment(today, departmentId)
@@ -215,8 +228,7 @@ public class AttendanceService {
 
         // Active employee count for the scope
         long totalActive = departmentId != null
-                ? employeeRepository.findByDepartmentId(departmentId,
-                        PageRequest.of(0, Integer.MAX_VALUE)).getTotalElements()
+                ? employeeRepository.countByDepartmentIdAndStatus(departmentId, Employee.Status.ACTIVE)
                 : employeeRepository.findByStatus(Employee.Status.ACTIVE,
                         PageRequest.of(0, Integer.MAX_VALUE)).getTotalElements();
 
@@ -242,14 +254,11 @@ public class AttendanceService {
     // ── Mapping helpers ───────────────────────────────────────────────────────
 
     /**
-     * Returns true when the current UTC time is at or past (shiftStart − 30 min).
-     * If no schedule is assigned the check-in window is considered open (edge case).
+     * Returns true when the current UTC time is at or past (shiftStart minus the configured early window).
+     * No assigned schedule or non-work day means the check-in window is closed.
      */
     private boolean isWithinCheckInWindow(WeeklySchedule schedule) {
-        if (schedule == null) return true;
-        LocalTime nowUtc   = LocalTime.now(ZoneOffset.UTC);
-        LocalTime earliest = schedule.getShiftStart().minusMinutes(30);
-        return !nowUtc.isBefore(earliest);
+        return window.isOpen(schedule, window.now());
     }
 
     private AttendanceResponse toResponse(Attendance a, WeeklySchedule schedule) {

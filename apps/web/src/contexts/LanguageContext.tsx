@@ -62,7 +62,7 @@ function localizeElement(root: ParentNode, locale: Locale) {
   while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
 
   for (const node of textNodes) {
-    if (node.parentElement?.closest('script, style')) continue;
+    if (node.parentElement?.closest('script, style, [translate="no"]')) continue;
     const translated = translateText(node.data, locale);
     if (translated !== node.data) node.data = translated;
   }

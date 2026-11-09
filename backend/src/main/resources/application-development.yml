@@ -10,7 +10,7 @@ logging:
 
 app:
   cors:
-    allowed-origins: "*"
+    allowed-origins: "http://localhost:5173,http://127.0.0.1:5173"
 
   # OTP logging — dev only. Set to false (or omit) in production.
   otp:
@@ -26,9 +26,9 @@ app:
   # Dev tip: set radius-meters to 999999 to disable distance checks,
   #   or send bypassGeofence: true in the check-in request body.
   geofence:
-    # MM9W+W5 Al Olaya, Riyadh
-    latitude: 24.669812
-    longitude: 46.695437
+    # Fictional coordinates; override locally for your workplace.
+    latitude: 0.0
+    longitude: 0.0
     radius-meters: 100
 
 springdoc:
@@ -83,3 +83,6 @@ spring.task:
     max-size: 8
     queue-capacity: 100
   scheduling.pool.size: 2
+
+# Local HTTP only; production uses Secure cookies.
+app.session.cookie-secure: false

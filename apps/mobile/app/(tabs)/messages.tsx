@@ -10,6 +10,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -57,23 +59,33 @@ function AttachmentContent({ msg, isMine }: { msg: MessageDto; isMine: boolean }
   const src = attachmentSrc(msg.attachmentUrl);
   const textColor = isMine ? '#0A0F0D' : WHITE;
 
-  if (msg.attachmentType === 'image') {
-    return (
-      <TouchableOpacity onPress={() => Linking.openURL(src)} activeOpacity={0.88}>
-        <Image
-          source={{ uri: src }}
-          style={styles.attachmentImage}
-          resizeMode="cover"
-        />
-      </TouchableOpacity>
-    );
-  }
+  const download = async () => {
+    try {
+      const session = await loadSession();
+      if (!session?.token) throw new Error('Sign in required');
+      if (Platform.OS === 'web') {
+        const res = await fetch(src, { headers: { Authorization: `Bearer ${session.token}` } });
+        if (!res.ok) throw new Error('Attachment unavailable');
+        const url = URL.createObjectURL(await res.blob());
+        const link = document.createElement('a'); link.href = url; link.download = msg.attachmentName || 'attachment';link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);return;
+      }
+      const name = (msg.attachmentName || 'attachment').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const dest = `${FileSystem.cacheDirectory}${msg.id}_${name}`;
+      try {
+        const result = await FileSystem.downloadAsync(src, dest, { headers: { Authorization: `Bearer ${session.token}` } });
+        if (result.status !== 200) throw new Error('Attachment unavailable');
+        if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(result.uri);
+        else throw new Error('File sharing unavailable');
+      } finally { await FileSystem.deleteAsync(dest, { idempotent: true }); }
+    } catch { Alert.alert('المرفق غير متاح', 'يرجى تسجيل الدخول والمحاولة مرة أخرى'); }
+  };
 
   // Generic file card
   return (
     <TouchableOpacity
       style={[styles.fileCard, isMine && styles.fileCardMine]}
-      onPress={() => Linking.openURL(src)}
+      onPress={download}
       activeOpacity={0.8}
     >
       <Ionicons name="document-outline" size={22} color={isMine ? '#0A0F0D' : NEON} />
@@ -100,7 +112,7 @@ function Bubble({
   const hasBody = msg.body && msg.body.trim().length > 0;
 
   return (
-    <Pressable onLongPress={onLongPress} delayLongPress={450} style={styles.bubbleRow(isMine) as any}>
+    <Pressable onLongPress={onLongPress} delayLongPress={450} style={{ flexDirection: isMine ? 'row-reverse' : 'row', alignItems: 'flex-end', marginBottom: 12, gap: 8 }}>
       {!isMine && (
         <View style={styles.bubbleAvatar}>
           <Text style={styles.bubbleAvatarText}>{avatarLetter(msg.senderNameAr)}</Text>
@@ -500,20 +512,11 @@ const styles = StyleSheet.create({
   emptySub:   { fontSize: 13, color: MUTED },
 
   // Bubbles
-  bubbleRow: (isMine: boolean) => ({
-    flexDirection: isMine ? 'row-reverse' : 'row',
-    alignItems: 'flex-end',
-    marginBottom: 10,
-    gap: 8,
-  }),
-  bubbleMax:  { maxWidth: '78%' },
-  bubbleAvatar:{
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(201,150,63,0.5)',
-    borderWidth: 1, borderColor: 'rgba(201,150,63,0.4)',
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
+  bubbleMax: { maxWidth: '78%' },
+  bubbleAvatar: { width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(201,150,63,0.5)', borderWidth: 1,
+    borderColor: 'rgba(201,150,63,0.4)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+
   bubbleAvatarText:{ fontSize: 13, fontFamily: 'Inter_700Bold', color: WHITE },
   bubbleName: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: GOLD,
                 marginBottom: 3, paddingHorizontal: 4 },

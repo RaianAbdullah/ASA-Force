@@ -51,6 +51,8 @@ const ProtectedRoute = ({ component: Component, adminOnly = false, ...rest }: an
   React.useEffect(() => {
     if (!isLoading && !session) {
       setLocation('/login');
+    } else if (!isLoading && session?.mustChangePassword) {
+      setLocation('/change-password');
     } else if (!isLoading && adminOnly && session) {
       const isAdmin = session.roles.some((r: string) => 
         ['SYSTEM_ADMIN', 'MAIN_MANAGER', 'DEPARTMENT_MANAGER', 'WEEKEND_MANAGER'].includes(r)
@@ -60,7 +62,7 @@ const ProtectedRoute = ({ component: Component, adminOnly = false, ...rest }: an
   }, [session, isLoading, location, setLocation, adminOnly]);
 
   if (isLoading) return <FullPageLoader />;
-  if (!session) return null;
+  if (!session || session.mustChangePassword) return null;
   if (adminOnly && !session.roles.some((r: string) => ['SYSTEM_ADMIN', 'MAIN_MANAGER', 'DEPARTMENT_MANAGER', 'WEEKEND_MANAGER'].includes(r))) return null;
 
   return (
@@ -87,13 +89,15 @@ const GuestRoute = ({ component: Component, ...rest }: any) => {
 };
 
 function Router() {
+  const { logout } = useAuth();
   const [, setLocation] = useLocation();
   
   React.useEffect(() => {
     setSessionExpiredCallback(() => {
+      logout();
       setLocation('/login');
     });
-  }, [setLocation]);
+  }, [setLocation, logout]);
 
   return (
     <Switch>

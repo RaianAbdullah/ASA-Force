@@ -35,6 +35,9 @@ public class Employee {
     @Column(name = "last_name_ar", nullable = false, length = 100)
     private String lastNameAr;
 
+    @Column(name = "full_name_en", length = 300)
+    private String fullNameEn;
+
     @Column(name = "phone_number", nullable = false, length = 20)
     private String phoneNumber;
 

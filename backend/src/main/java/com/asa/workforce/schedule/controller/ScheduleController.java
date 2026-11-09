@@ -46,7 +46,7 @@ public class ScheduleController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','MAIN_MANAGER','WEEKEND_MANAGER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','MAIN_MANAGER','DEPARTMENT_MANAGER','WEEKEND_MANAGER')")
     @Operation(summary = "Create a schedule for an employee (admin/manager only)")
     public ResponseEntity<ApiResponse<ScheduleDto>> createSchedule(
             @AuthenticationPrincipal UserDetails user,
@@ -58,8 +58,8 @@ public class ScheduleController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a schedule (admin/manager only)")
-    public ResponseEntity<ApiResponse<Void>> deleteSchedule(@PathVariable UUID id) {
-        scheduleService.deleteSchedule(id);
+    public ResponseEntity<ApiResponse<Void>> deleteSchedule(@AuthenticationPrincipal UserDetails user, @PathVariable UUID id) {
+        scheduleService.deleteSchedule(id, user.getUsername());
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }

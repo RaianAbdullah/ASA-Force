@@ -12,6 +12,8 @@ import java.util.UUID;
 public class EmployeeSummaryDto {
     private UUID         id;
     private String       nationalId;
+    private String       fullNameEn;
+    private String       departmentNameEn;
     private String       firstNameAr;
     private String       middleNameAr;
     private String       lastNameAr;
